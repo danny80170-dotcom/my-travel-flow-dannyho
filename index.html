@@ -21,20 +21,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
     <style>
-        /* 佈局修正：使用 100dvh 適應行動版網址列 */
-        html, body { 
+        /* 核心修正：使用 fixed 鎖定 body，避免 iOS 網址列計算錯誤造成無法滑動 */
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+        body { 
             height: 100%;
             width: 100%;
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif; 
             background-color: #fffbf0; 
-            overflow: hidden; /* 防止整體頁面捲動 */
+            position: fixed; /* 強制固定視窗 */
+            overflow: hidden; 
+            touch-action: pan-y; /* 允許垂直滑動，但禁止縮放等其他手勢 */
+            -webkit-user-select: none; /* 避免長按選取文字影響 App 體驗 */
+            user-select: none;
         }
         
         #root {
             height: 100%;
             width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 恢復輸入框的文字選取功能 */
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
         }
 
         /* iOS 慣性捲動 */
@@ -158,6 +174,21 @@
           accommodation: { label: "住宿", icon: Bed, color: "text-emerald-700 bg-emerald-50 border-emerald-200" }, 
           shopping: { label: "購物", icon: MapPin, color: "text-indigo-700 bg-indigo-50 border-indigo-200" }, 
           other: { label: "其他", icon: MapPin, color: "text-gray-600 bg-gray-50 border-gray-200" },
+        };
+
+        // --- Helper Function: 計算日期 ---
+        const calculateDate = (startDate, dayIndex) => {
+            if (!startDate) return "";
+            try {
+                const date = new Date(startDate);
+                date.setDate(date.getDate() + dayIndex);
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const weekDay = ['日','一','二','三','四','五','六'][date.getDay()];
+                return `${month}/${day} (${weekDay})`;
+            } catch (e) {
+                return "";
+            }
         };
 
         async function callGemini(prompt, responseMimeType = "application/json") {
@@ -662,6 +693,7 @@
             );
         };
 
+        // Modals
         function FlightDetailModal({ isOpen, onClose, currentTrip, onUpdateTrip }) {
             const [arrivalDetails, setArrivalDetails] = useState({ time: "", location: "", ...(currentTrip?.arrival || {}) });
             const [departureDetails, setDepartureDetails] = useState({ time: "", location: "", ...(currentTrip?.departure || {}) });
@@ -997,7 +1029,7 @@
 
           if (!currentTrip) {
               return (
-                  <div className="h-[100dvh] w-full p-6 pb-24 overflow-y-auto relative z-10">
+                  <div className="h-[100dvh] w-full p-6 pb-24 overflow-y-auto relative z-10 scrolling-touch">
                       <SakuraBackground />
                       <JapaneseDecoration />
                       <header className="mb-8 pt-4 flex justify-between items-center relative z-10">
@@ -1028,7 +1060,10 @@
                       <div className="flex items-center gap-3 overflow-hidden">
                           <button onClick={() => setCurrentTripId(null)} className="p-2 hover:bg-stone-50 rounded-full text-stone-500"><ChevronLeft/></button>
                           <div className="flex flex-col overflow-hidden">
-                              <h1 className="font-bold text-lg truncate japanese-font">{currentTrip.title}</h1>
+                              <div className="flex items-baseline gap-2">
+                                  <h1 className="font-bold text-lg truncate japanese-font">{currentTrip.title}</h1>
+                                  <span className="text-sm font-medium text-stone-500">{calculateDate(currentTrip.startDate, currentDayIndex)}</span>
+                              </div>
                               {currentTrip.days[currentDayIndex].hotel && (
                                   <div className="flex items-center gap-1"><WeatherWidget location={currentTrip.arrival.location || "Okinawa"} /></div>
                               )}
@@ -1043,24 +1078,28 @@
                       </div>
                   </header>
 
-                  <div className="flex-1 relative flex overflow-hidden z-10">
+                  <div className="flex-1 relative flex overflow-hidden z-10 min-h-0">
                       {activeTab === 'itinerary' ? (
-                          <div className="flex-1 flex flex-col h-full min-w-[320px]">
+                          <div className="flex-1 flex flex-col h-full min-w-[320px] min-h-0">
                               {/* Day Navigator */}
-                              <div className="flex overflow-x-auto p-2 gap-2 bg-white/50 backdrop-blur-sm border-b border-stone-200 no-scrollbar z-20 shadow-sm flex-none sticky top-0">
+                              <div className="flex overflow-x-auto p-2 gap-2 bg-white/50 backdrop-blur-sm border-b border-stone-200 no-scrollbar z-20 shadow-sm flex-none sticky top-0 scrolling-touch">
                                   {currentTrip.days.map((day, idx) => (
                                       <button key={day.id} onClick={() => setCurrentDayIndex(idx)} className={`flex-none px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${currentDayIndex === idx ? 'btn-sakura text-white shadow-md' : 'bg-white text-stone-500 border border-stone-200'}`}>
-                                          {day.date}
+                                          {/* Use calculated date or fallback */}
+                                          {calculateDate(currentTrip.startDate, idx) || day.date}
                                       </button>
                                   ))}
                                   <button onClick={() => { const newDays = [...currentTrip.days, {id: generateId(), date: `Day ${currentTrip.days.length+1}`, activities:[]}]; handleUpdateTrip(currentTrip.id, {days: newDays}); setCurrentDayIndex(newDays.length-1); }} className="px-3 py-2 bg-white border border-stone-200 text-stone-400 rounded-full hover:bg-stone-50"><Plus size={16}/></button>
                               </div>
 
-                              <div className="flex-1 overflow-y-auto p-4 pb-24 custom-scrollbar relative overscroll-contain">
+                              <div className="flex-1 overflow-y-auto scrolling-touch p-4 pb-24 custom-scrollbar relative overscroll-contain min-h-0">
                                   {/* Day Info */}
                                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-stone-200 mb-6 flex flex-col gap-3">
                                       <div className="flex justify-between items-start">
-                                          <h2 className="text-2xl font-bold text-stone-800 japanese-font">Day {currentDayIndex + 1}</h2>
+                                          <div className="flex items-baseline gap-2">
+                                              <h2 className="text-2xl font-bold text-stone-800 japanese-font">Day {currentDayIndex + 1}</h2>
+                                              <span className="text-lg font-medium text-stone-500">{calculateDate(currentTrip.startDate, currentDayIndex)}</span>
+                                          </div>
                                           <button onClick={toggleWeather} className="bg-white px-2 py-1 rounded-lg border border-stone-200 hover:bg-stone-50"><WeatherIcon type={currentDay.weather} /></button>
                                       </div>
                                       <div className="flex items-center gap-2 bg-[#fdfcf6] p-3 rounded-xl border border-stone-200">
@@ -1090,7 +1129,7 @@
                               </div>
                           </div>
                       ) : (
-                          <div className="flex-1 overflow-y-auto min-w-[320px]">
+                          <div className="flex-1 overflow-y-auto scrolling-touch min-w-[320px] min-h-0">
                               <ToolsView trip={currentTrip} onUpdate={handleUpdateTrip} />
                           </div>
                       )}
@@ -1107,7 +1146,7 @@
                                       {loadingRecs ? <Loader2 className="animate-spin"/> : <Sparkles/>} 分析行程並推薦
                                   </button>
                               </div>
-                              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                              <div className="flex-1 overflow-y-auto p-4 space-y-3 scrolling-touch min-h-0">
                                   {(recommendations[currentDayIndex] || []).map((rec, i) => (
                                       <RecommendationCard key={i} suggestion={rec} onAdd={handleAddRecommendation} />
                                   ))}
