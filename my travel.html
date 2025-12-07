@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TravelFlow</title>
+    
+    <!-- iOS PWA 設定 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TravelFlow">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/826/826070.png">
+
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 Babel (用於解析 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f5f5f4; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 確保 iPhone 安全區域 */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        
+        /* 錯誤顯示樣式 */
+        #error-display { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 9999; padding: 20px; color: red; overflow: auto; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <div id="error-display"></div>
+
+    <script>
+        // 全域錯誤捕捉，避免白屏
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errorDisplay = document.getElementById('error-display');
+            errorDisplay.style.display = 'block';
+            errorDisplay.innerHTML = `<h3>⚠️ 應用程式發生錯誤</h3><p>${message}</p><pre>${error ? error.stack : ''}</pre>`;
+        };
+    </script>
+
+    <script type="text/babel" data-type="module">
+        // 使用明確的 ESM URL 載入 React，解決模組路徑錯誤
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+        
+        // 載入 Lucide Icon，強制指定依賴 React 18.2.0
+        import { 
+            Map, Calendar, Clock, Plus, Trash2, MapPin, 
+            Coffee, Bed, Plane, ChevronLeft, Save, 
+            MoreVertical, X, Sun, Moon, Utensils, Camera, Bus,
+            Share, Copy, ExternalLink, Check, Sparkles, Loader2, Wand2,
+            Download, Smartphone, Pencil, ListPlus, Clock3, Lightbulb,
+            CloudSun, Phone, Wallet, Car, Navigation,
+            LayoutGrid, Menu, PanelRightOpen, PanelRightClose
+        } from 'https://esm.sh/lucide-react@latest?deps=react@18.2.0';
+
+        const apiKey = ""; 
+
+        const generateId = () => Date.now() + Math.random();
+
+        // 預設行程
+        const DEFAULT_TRIPS = [
+          {
+            id: 1715432000000,
+            title: "🇯🇵 沖繩自駕漫遊",
+            startDate: "2024-06-15",
+            arrival: { time: "10:00", location: "那霸機場 OKA" },
+            departure: { time: "17:00", location: "那霸機場 OKA" },
+            expenses: [
+              { id: 1, title: "租車費用", amount: 15000, currency: "JPY" },
+              { id: 2, title: "第一天晚餐", amount: 5000, currency: "JPY" }
+            ],
+            emergencyContacts: [
+              { id: 1, name: "租車公司 (OTS)", phone: "098-856-8877" },
+              { id: 2, name: "臺北駐日經濟文化代表處", phone: "+81-3-3280-7811" }
+            ],
+            days: [
+              {
+                id: 1715432000001,
+                date: "Day 1",
+                hotel: "Vessel Hotel Campana Okinawa", 
+                weather: "sunny",
+                activities: [
+                  { id: 101, time: "10:30", type: "transport", title: "取車出發", note: "預約代號: #OTS-9988，記得檢查車況", location: "OTS 臨空豐崎營業所" },
+                  { id: 102, time: "12:00", type: "food", title: "幸福鬆餅", note: "必吃美食：舒芙蕾鬆餅，需提前兩週預約", location: "幸福鬆餅 瀨長島店" },
+                  { id: 103, time: "14:30", type: "sightseeing", title: "美國村逛街", note: "必買伴手禮：Blue Seal 冰淇淋周邊", location: "美國村" },
+                ]
+              },
+              {
+                id: 1715432000002,
+                date: "Day 2",
+                hotel: "Orion Motobu Resort",
+                weather: "cloudy",
+                activities: [
+                  { id: 201, time: "09:30", type: "sightseeing", title: "美麗海水族館", note: "必看：黑潮之海餵食秀 (15:00)", location: "沖繩美麗海水族館" },
+                  { id: 202, time: "13:00", type: "food", title: "花人逢", note: "必點菜單：手工披薩，風景很美", location: "花人逢" },
+                ]
+              }
+            ]
+          }
+        ];
+
+        const ACTIVITY_TYPES = {
+          sightseeing: { label: "景點", icon: Camera, color: "text-teal-700 bg-teal-50 border-teal-200" },
+          food: { label: "美食", icon: Utensils, color: "text-orange-700 bg-orange-50 border-orange-200" },
+          transport: { label: "交通", icon: Car, color: "text-slate-700 bg-slate-100 border-slate-200" },
+          accommodation: { label: "住宿", icon: Bed, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+          shopping: { label: "購物", icon: MapPin, color: "text-rose-700 bg-rose-50 border-rose-200" },
+          other: { label: "其他", icon: MapPin, color: "text-stone-700 bg-stone-100 border-stone-200" },
+        };
+
+        // API 呼叫
+        async function callGemini(prompt, responseMimeType = "application/json") {
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+              { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: responseMimeType } }) }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (responseMimeType === "application/json" && text) return JSON.parse(text);
+                return text;
+            }
+            throw new Error(`API Error: ${response.statusText}`);
+          } catch (error) { console.error("Gemini API Error:", error); throw error; }
+        }
+
+        const HighlightTags = ({ text }) => {
+          if (!text || typeof text !== 'string') return null;
+          const keywords = [
+            { key: "必吃", color: "bg-red-100 text-red-600" },
+            { key: "必買", color: "bg-pink-100 text-pink-600" },
+            { key: "必去", color: "bg-teal-100 text-teal-600" },
+            { key: "預約", color: "bg-amber-100 text-amber-700" },
+            { key: "代號", color: "bg-purple-100 text-purple-700" },
+            { key: "注意", color: "bg-yellow-100 text-yellow-700" },
+          ];
+          return (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {keywords.map(k => {
+                if (text.includes(k.key)) {
+                  return <span key={k.key} className={`text-[10px] px-1.5 py-0.5 rounded ${k.color} font-medium`}>{k.key}重點</span>
+                }
+                return null;
+              })}
+            </div>
+          );
+        };
+
+        function ActivityItem({ activity, onUpdate, onDelete, openNavigation }) {
+            const [isEditing, setIsEditing] = useState(false);
+            const [editedActivity, setEditedActivity] = useState(activity);
+            const typeConfig = ACTIVITY_TYPES[activity.type] || ACTIVITY_TYPES.other;
+            const Icon = ACTIVITY_TYPES[activity.type]?.icon || MapPin;
+
+            const handleSave = () => { onUpdate(editedActivity); setIsEditing(false); };
+
+            if (isEditing) {
+                return (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 mb-4 animate-in fade-in">
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <input type="time" value={editedActivity.time} onChange={(e) => setEditedActivity({...editedActivity, time: e.target.value})} className="p-2 border border-stone-200 rounded-lg text-sm bg-stone-50" />
+                                <select value={editedActivity.type} onChange={(e) => setEditedActivity({...editedActivity, type: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm bg-stone-50">
+                                    {Object.entries(ACTIVITY_TYPES).map(([key, config]) => (<option key={key} value={key}>{config.label}</option>))}
+                                </select>
+                            </div>
+                            <input type="text" placeholder="標題" value={editedActivity.title} onChange={(e) => setEditedActivity({...editedActivity, title: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg font-bold text-lg" />
+                            <input type="text" placeholder="地點 (Google Maps)" value={editedActivity.location} onChange={(e) => setEditedActivity({...editedActivity, location: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm" />
+                            <textarea placeholder="備註: 必吃美食、預約代號..." value={editedActivity.note} onChange={(e) => setEditedActivity({...editedActivity, note: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm h-20 resize-none"></textarea>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-stone-500 hover:bg-stone-100 rounded-lg text-sm">取消</button>
+                                <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm shadow-sm hover:bg-indigo-700">儲存</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            
+            const dotColor = typeConfig.color ? typeConfig.color.split(' ')[1] : 'bg-gray-400';
+
+            return (
+                <div className="relative pl-6 pb-8 group last:pb-0">
+                    <div className="absolute left-[7px] top-3 bottom-0 w-px bg-stone-200 group-last:hidden"></div>
+                    <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 ${dotColor}`}></div>
+                    <div className="bg-white rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-stone-100 hover:shadow-md transition-all relative overflow-hidden">
+                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-indigo-600 rounded-full hover:bg-stone-50"><Pencil size={14} /></button>
+                            <button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-stone-50"><Trash2 size={14} /></button>
+                        </div>
+                        <div className="flex justify-between items-start mb-2 pr-12">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-mono text-sm font-bold text-stone-400">{activity.time}</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${typeConfig.color}`}>{typeConfig.label}</span>
+                                </div>
+                                <h3 className="font-bold text-stone-800 text-lg">{activity.title}</h3>
+                            </div>
+                        </div>
+                        {activity.location && (
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="flex items-center gap-1 text-sm text-stone-500 truncate max-w-[200px]">
+                                    <MapPin size={14} /><span>{activity.location}</span>
+                                </div>
+                                <button onClick={() => openNavigation(activity.location)} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors">
+                                    <Navigation size={12} /> 導航
+                                </button>
+                            </div>
+                        )}
+                        {activity.note && (
+                            <div className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100">
+                                <p className="whitespace-pre-wrap">{activity.note}</p>
+                                <HighlightTags text={activity.note} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ToolsView = ({ trip, onUpdate }) => {
+            const [newExpense, setNewExpense] = useState({ title: "", amount: "", currency: "JPY" });
+            const [newContact, setNewContact] = useState({ name: "", phone: "" });
+            const totalExpense = (trip.expenses || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+            const addExpense = () => {
+                if (!newExpense.title || !newExpense.amount) return;
+                const updatedExpenses = [...(trip.expenses || []), { ...newExpense, id: generateId(), amount: Number(newExpense.amount) }];
+                onUpdate(trip.id, { expenses: updatedExpenses });
+                setNewExpense({ title: "", amount: "", currency: "JPY" });
+            };
+            const deleteExpense = (id) => onUpdate(trip.id, { expenses: trip.expenses.filter(e => e.id !== id) });
+            const addContact = () => {
+                if (!newContact.name || !newContact.phone) return;
+                const updatedContacts = [...(trip.emergencyContacts || []), { ...newContact, id: generateId() }];
+                onUpdate(trip.id, { emergencyContacts: updatedContacts });
+                setNewContact({ name: "", phone: "" });
+            };
+            const deleteContact = (id) => onUpdate(trip.id, { emergencyContacts: trip.emergencyContacts.filter(c => c.id !== id) });
+
+            return (
+                <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 pb-32">
+                    <h2 className="text-2xl font-bold text-stone-800 mb-6">旅程工具箱</h2>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Plane size={20} className="text-indigo-500"/> 航班資訊</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                <div className="text-xs text-stone-400 font-bold uppercase mb-1">去程 Arrival</div>
+                                <div className="text-lg font-bold text-stone-800">{trip.arrival?.time || "--:--"}</div>
+                                <div className="text-stone-600">{trip.arrival?.location || "未設定"}</div>
+                            </div>
+                            <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                <div className="text-xs text-stone-400 font-bold uppercase mb-1">回程 Departure</div>
+                                <div className="text-lg font-bold text-stone-800">{trip.departure?.time || "--:--"}</div>
+                                <div className="text-stone-600">{trip.departure?.location || "未設定"}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Bed size={20} className="text-indigo-500"/> 住宿總覽</h3>
+                        <div className="space-y-3">
+                            {(trip.days || []).map((day, idx) => (
+                                <div key={day.id} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
+                                    <span className="text-sm font-medium text-stone-500">{day.date}</span>
+                                    <span className="text-stone-800 font-bold">{day.hotel || "尚未安排"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-stone-700 flex items-center gap-2"><Wallet size={20} className="text-indigo-500"/> 記帳/預算</h3>
+                            <div className="text-sm bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold">總計: {totalExpense.toLocaleString()}</div>
+                        </div>
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" placeholder="項目" value={newExpense.title} onChange={e => setNewExpense({...newExpense, title: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
+                            <input type="number" placeholder="金額" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} className="w-24 p-2 border border-stone-200 rounded-lg text-sm" />
+                            <button onClick={addExpense} className="p-2 bg-indigo-600 text-white rounded-lg"><Plus size={20}/></button>
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                            {(trip.expenses || []).map(exp => (
+                                <div key={exp.id} className="flex justify-between items-center bg-stone-50 p-2 rounded-lg text-sm">
+                                    <span className="text-stone-700">{exp.title}</span>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-mono font-bold">{Number(exp.amount).toLocaleString()}</span>
+                                        <button onClick={() => deleteExpense(exp.id)} className="text-stone-400 hover:text-red-500"><X size={14}/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Phone size={20} className="text-indigo-500"/> 緊急聯絡</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" placeholder="名稱" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
+                            <input type="tel" placeholder="電話" value={newContact.phone} onChange={e => setNewContact({...newContact, phone: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
+                            <button onClick={addContact} className="p-2 bg-indigo-600 text-white rounded-lg"><Plus size={20}/></button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {(trip.emergencyContacts || []).map(contact => (
+                                <div key={contact.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
+                                    <div><div className="text-xs text-red-400 font-bold">{contact.name}</div><div className="text-red-800 font-mono font-bold">{contact.phone}</div></div>
+                                    <button onClick={() => deleteContact(contact.id)} className="text-red-300 hover:text-red-600"><X size={16}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        function FlightDetailModal({ isOpen, onClose, currentTrip, onUpdateTrip }) {
+            const [arrivalDetails, setArrivalDetails] = useState({ time: "", location: "", ...(currentTrip?.arrival || {}) });
+            const [departureDetails, setDepartureDetails] = useState({ time: "", location: "", ...(currentTrip?.departure || {}) });
+
+            useEffect(() => {
+                if (isOpen && currentTrip) {
+                    setArrivalDetails({ time: "", location: "", ...(currentTrip.arrival || {}) });
+                    setDepartureDetails({ time: "", location: "", ...(currentTrip.departure || {}) });
+                }
+            }, [isOpen, currentTrip]);
+
+            if (!isOpen) return null;
+            const handleSave = () => { onUpdateTrip(currentTrip.id, { arrival: arrivalDetails, departure: departureDetails }); onClose(); };
+
+            return (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto">
+                    <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><Plane size={24}/> 航班設定</h3>
+                            <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
+                        </div>
+                        <div className="space-y-6">
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <h4 className="font-bold text-blue-800 mb-3 flex items-center gap-2"><Bus size={18}/> 去程</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">時間</label><input type="time" value={arrivalDetails.time || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, time: e.target.value})} className="w-full p-2 border border-blue-200 rounded-lg text-sm" /></div>
+                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">地點</label><input type="text" value={arrivalDetails.location || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-blue-200 rounded-lg text-sm" /></div>
+                                </div>
+                            </div>
+                            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                <h4 className="font-bold text-red-800 mb-3 flex items-center gap-2"><Plane size={18}/> 回程</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-xs font-bold text-red-600 mb-1">時間</label><input type="time" value={departureDetails.time || ""} onChange={(e) => setDepartureDetails({...departureDetails, time: e.target.value})} className="w-full p-2 border border-red-200 rounded-lg text-sm" /></div>
+                                    <div><label className="block text-xs font-bold text-red-600 mb-1">地點</label><input type="text" value={departureDetails.location || ""} onChange={(e) => setDepartureDetails({...departureDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-red-200 rounded-lg text-sm" /></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={handleSave} className="w-full mt-6 py-3.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"><Save size={20} /> 儲存設定</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function MapImportModal({ isOpen, onClose, onImport, currentTrip, tripDuration }) {
+            const [importText, setImportText] = useState("");
+            const [parsedDays, setParsedDays] = useState([]); 
+            const [importTitle, setImportTitle] = useState("");
+            const [isLoading, setIsLoading] = useState(false);
+            const [currentStep, setCurrentStep] = useState(1); 
+            
+            const { arrival, departure } = currentTrip;
+            const hotelsContext = (currentTrip.days || []).map((d, i) => `Day ${i + 1} 住宿: ${d.hotel || "未設定"}`).join('\n');
+
+            const handleAIParseMapList = async () => {
+                if (!importText) return;
+                setIsLoading(true);
+                setParsedDays([]);
+                const arrivalInfo = arrival.time ? `行程 ${arrival.time} 抵達` : "";
+                const prompt = `您是導遊。請將以下地點分配到 ${tripDuration} 天行程。地點：\n${importText}\n住宿：\n${hotelsContext}\n${arrivalInfo}\n請回傳 JSON: { "tripTitle": "...", "days": [{ "dateTitle": "...", "activities": [{ "time": "HH:MM", "title": "...", "type": "sightseeing/food/shopping", "location": "...", "note": "特色與建議停留時間..." }] }] }`;
+                try {
+                    const result = await callGemini(prompt);
+                    setParsedDays(result.days); setImportTitle(result.tripTitle || currentTrip.title); setCurrentStep(2);
+                } catch (error) { alert("AI 解析失敗，請確認輸入內容"); } finally { setIsLoading(false); }
+            };
+            
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto">
+                    <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl h-[85vh] md:h-auto flex flex-col animate-in slide-in-from-bottom duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><ListPlus size={24}/> 智能匯入</h3>
+                            <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {currentStep === 1 ? (
+                                <div className="space-y-4">
+                                    <textarea placeholder="貼上地點清單，AI 幫您排路線..." value={importText} onChange={(e) => setImportText(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl h-64 resize-none focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                                    <button onClick={handleAIParseMapList} disabled={!importText || isLoading} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <Loader2 className="animate-spin" /> : "開始規劃 ✨"}</button>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="p-3 bg-green-50 text-green-700 rounded-xl text-sm flex items-center gap-2 border border-green-100"><Check size={16}/> 規劃完成</div>
+                                    {parsedDays.map((day, idx) => (
+                                        <div key={idx} className="border border-stone-200 rounded-xl p-4">
+                                            <h4 className="font-bold text-stone-800 mb-2">{day.dateTitle}</h4>
+                                            <div className="space-y-2">{day.activities.map((a,i)=><div key={i} className="text-sm flex gap-2"><span className="text-indigo-600 font-mono w-12">{a.time}</span><span className="truncate">{a.title}</span></div>)}</div>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => { onImport(parsedDays, importTitle); onClose(); }} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700">確認使用此行程</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function RecommendationCard({ suggestion, onAdd }) {
+            const typeConfig = ACTIVITY_TYPES[suggestion.type] || ACTIVITY_TYPES.other;
+            return (
+                <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all mb-3 group relative">
+                    <div className="flex justify-between items-start">
+                        <div><h4 className="font-bold text-stone-800 text-sm">{suggestion.title}</h4><p className="text-xs text-stone-500 flex items-center gap-1 mt-1"><MapPin size={10} /> {suggestion.location}</p></div>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeConfig.color.replace('bg-', 'bg-opacity-10 ')}`}>{typeConfig.label}</span>
+                    </div>
+                    <p className="text-xs text-stone-600 mt-2 line-clamp-2">{suggestion.note}</p>
+                    <div className="mt-3 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">建議時間: {suggestion.time}</span>
+                        <button onClick={() => onAdd(suggestion)} className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"><Plus size={14} /> 加入</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function TravelPlanner() {
+          const [trips, setTrips] = useState(() => { try { return JSON.parse(localStorage.getItem('travel_planner_trips')) || DEFAULT_TRIPS; } catch { return DEFAULT_TRIPS; } });
+          const [activeTab, setActiveTab] = useState('itinerary'); 
+          const [currentTripId, setCurrentTripId] = useState(null);
+          const [currentDayIndex, setCurrentDayIndex] = useState(0);
+          
+          const [isModalOpen, setIsModalOpen] = useState(false);
+          const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+          const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
+          const [showRecommendations, setShowRecommendations] = useState(false);
+          const [recommendations, setRecommendations] = useState({});
+          const [loadingRecs, setLoadingRecs] = useState(false);
+          const [showCopyToast, setShowCopyToast] = useState(false);
+          
+          const [isCreateOpen, setIsCreateOpen] = useState(false);
+          const [newTripData, setNewTripData] = useState({ title: "", date: "", days: 3 });
+          const [newActivity, setNewActivity] = useState({ time: "09:00", title: "", type: "sightseeing", location: "", note: "" });
+          
+          const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+
+          useEffect(() => { localStorage.setItem('travel_planner_trips', JSON.stringify(trips)); }, [trips]);
+
+          useEffect(() => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if (isIOS && !isStandaloneMode && !localStorage.getItem('install_prompt_dismissed')) {
+              const timer = setTimeout(() => setShowInstallPrompt(true), 2000);
+              return () => clearTimeout(timer);
+            }
+          }, []);
+
+          const currentTrip = trips.find(t => t.id === currentTripId);
+          const currentDay = currentTrip ? currentTrip.days[currentDayIndex] : null;
+
+          const handleUpdateTrip = (id, data) => setTrips(trips.map(t => t.id === id ? { ...t, ...data } : t));
+          const handleDeleteTrip = (id) => { if(confirm("刪除此行程？")) setTrips(trips.filter(t => t.id !== id)); setCurrentTripId(null); };
+          
+          const handleCreateTrip = () => {
+              const newTrip = { 
+                  id: generateId(), 
+                  title: newTripData.title, 
+                  startDate: newTripData.date, 
+                  arrival: { time: "", location: "" }, 
+                  departure: { time: "", location: "" }, 
+                  expenses: [], 
+                  emergencyContacts: [],
+                  days: Array.from({length: newTripData.days}, (_, i) => ({ id: generateId(), date: `Day ${i+1}`, hotel: "", activities: [] }))
+              };
+              setTrips([...trips, newTrip]); setIsCreateOpen(false); setNewTripData({ title: "", date: "", days: 3 });
+          };
+
+          const handleUpdateActivity = (updatedAct) => {
+              const updatedDays = currentTrip.days.map((day, idx) => {
+                  if (idx !== currentDayIndex) return day;
+                  const acts = day.activities.map(a => a.id === updatedAct.id ? updatedAct : a);
+                  return { ...day, activities: acts.sort((a,b) => a.time.localeCompare(b.time)) };
+              });
+              handleUpdateTrip(currentTripId, { days: updatedDays });
+          };
+          
+          const handleDeleteActivity = (id) => {
+              const updatedDays = currentTrip.days.map((day, idx) => {
+                  if (idx !== currentDayIndex) return day;
+                  return { ...day, activities: day.activities.filter(a => a.id !== id) };
+              });
+              handleUpdateTrip(currentTripId, { days: updatedDays });
+          };
+
+          const handleAddActivity = () => {
+              if(!newActivity.title) return;
+              const act = { ...newActivity, id: generateId() };
+              const updatedDays = currentTrip.days.map((day, idx) => {
+                  if (idx !== currentDayIndex) return day;
+                  return { ...day, activities: [...day.activities, act].sort((a,b) => a.time.localeCompare(b.time)) };
+              });
+              handleUpdateTrip(currentTripId, { days: updatedDays });
+              setIsModalOpen(false); setNewActivity({ time: "09:00", title: "", type: "sightseeing", location: "", note: "" });
+          };
+
+          const insertActivities = (activitiesToAdd) => {
+            const updatedDays = currentTrip.days.map((day, idx) => {
+                if (idx !== currentDayIndex) return day;
+                const newActs = [...day.activities, ...activitiesToAdd].sort((a, b) => a.time.localeCompare(b.time));
+                return { ...day, activities: newActs };
+            });
+            handleUpdateTrip(currentTripId, { days: updatedDays });
+          };
+
+          const handleImportMapList = (newTripDays, newTripTitle) => {
+              const updatedTrips = trips.map(t => {
+                  if (t.id === currentTripId) {
+                      return { 
+                          ...t, 
+                          title: newTripTitle,
+                          days: newTripDays.map((day, idx) => ({
+                              id: generateId(),
+                              date: day.dateTitle || `Day ${idx + 1}`,
+                              hotel: t.days[idx]?.hotel || "", 
+                              weather: "sunny",
+                              activities: day.activities.map(act => ({ ...act, id: generateId() }))
+                          }))
+                      };
+                  } 
+                  return t;
+              });
+              setTrips(updatedTrips);
+              setCurrentDayIndex(0);
+          };
+
+          const openNavigation = (loc) => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}&travelmode=driving`, '_blank');
+          
+          const handleGetRecommendations = async () => {
+              setLoadingRecs(true);
+              const prompt = `針對 ${currentTrip.title} Day ${currentDayIndex+1} (住宿: ${currentDay.hotel}) 的行程：${currentDay.activities.map(a=>a.location).join(',')}，推薦 3 個順路景點或餐廳。JSON: [{ "title": "...", "type": "...", "location": "...", "time": "HH:MM", "note": "..." }]`;
+              try {
+                  const res = await callGemini(prompt);
+                  setRecommendations({...recommendations, [currentDayIndex]: res});
+              } catch(e) { alert("AI 忙線中"); } finally { setLoadingRecs(false); }
+          };
+
+          const handleAddRecommendation = (suggestion) => {
+              const newActivity = {
+                  id: generateId(),
+                  time: suggestion.time || "12:00",
+                  title: suggestion.title,
+                  location: suggestion.location,
+                  type: suggestion.type,
+                  note: suggestion.note
+              };
+              insertActivities([newActivity]);
+              setRecommendations(prev => ({
+                  ...prev,
+                  [currentDayIndex]: prev[currentDayIndex].filter(i => i.title !== suggestion.title)
+              }));
+          };
+
+          const toggleWeather = () => {
+              const weathers = ['sunny', 'cloudy', 'rainy'];
+              const current = currentDay.weather || 'sunny';
+              const next = weathers[(weathers.indexOf(current) + 1) % weathers.length];
+              const updatedDays = [...currentTrip.days];
+              updatedDays[currentDayIndex] = { ...updatedDays[currentDayIndex], weather: next };
+              handleUpdateTrip(currentTripId, { days: updatedDays });
+          };
+
+          const handleCopyItinerary = () => {
+              if (!currentTrip) return;
+              let text = `✈️ ${currentTrip.title}\n📅 ${currentTrip.startDate}\n`;
+              text += `🛫 抵達: ${currentTrip.arrival?.time || 'NA'}\n🛬 離開: ${currentTrip.departure?.time || 'NA'}\n\n`;
+              currentTrip.days.forEach((day, index) => {
+                  text += `【${day.date}】🏨 ${day.hotel || "未定"}\n`;
+                  if (day.activities.length === 0) text += `  (無行程)\n`;
+                  else day.activities.forEach(act => text += `  ${act.time} ${act.title}\n`);
+                  text += `\n`;
+              });
+              navigator.clipboard.writeText(text).then(() => {
+                  setShowCopyToast(true); setTimeout(() => setShowCopyToast(false), 2000);
+              });
+          };
+
+          const WeatherIcon = ({ type }) => {
+              if (type === 'rainy') return <div className="flex items-center gap-1 text-blue-500"><CloudSun size={16}/> <span className="text-xs">雨天</span></div>;
+              if (type === 'cloudy') return <div className="flex items-center gap-1 text-stone-500"><CloudSun size={16}/> <span className="text-xs">多雲</span></div>;
+              return <div className="flex items-center gap-1 text-orange-500"><Sun size={16}/> <span className="text-xs">晴朗</span></div>;
+          };
+
+          if (!currentTrip) {
+              return (
+                  <div className="min-h-screen bg-stone-50 p-6 pb-24 overflow-auto">
+                      <header className="mb-8 pt-4">
+                          <h1 className="text-3xl font-bold text-stone-800 tracking-tight">TravelFlow</h1>
+                          <p className="text-stone-500">規劃你的下一段旅程</p>
+                      </header>
+                      <div className="grid gap-4">
+                          {trips.map(trip => (
+                              <div key={trip.id} onClick={() => { setCurrentTripId(trip.id); setActiveTab('itinerary'); }} className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 flex justify-between items-center cursor-pointer hover:shadow-md transition-all">
+                                  <div>
+                                      <h3 className="font-bold text-stone-800 text-lg mb-1">{trip.title}</h3>
+                                      <p className="text-sm text-stone-400 flex items-center gap-2"><Calendar size={14}/> {trip.startDate} · {trip.days.length} 天</p>
+                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} className="p-2 text-stone-300 hover:text-red-400"><Trash2 size={18}/></button>
+                              </div>
+                          ))}
+                          <button onClick={() => setIsCreateOpen(true)} className="mt-4 w-full py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-indigo-400 hover:text-indigo-500 transition-colors flex items-center justify-center gap-2"><Plus/> 建立新旅程</button>
+                      </div>
+                      
+                      {isCreateOpen && (
+                          <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                              <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in">
+                                  <h3 className="text-xl font-bold mb-4 text-stone-800">新旅程</h3>
+                                  <input type="text" placeholder="名稱 (如: 沖繩之旅)" value={newTripData.title} onChange={e=>setNewTripData({...newTripData, title:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" autoFocus />
+                                  <input type="date" value={newTripData.date} onChange={e=>setNewTripData({...newTripData, date:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" />
+                                  <div className="flex justify-end gap-2 mt-4">
+                                      <button onClick={()=>setIsCreateOpen(false)} className="px-4 py-2 text-stone-500">取消</button>
+                                      <button onClick={handleCreateTrip} disabled={!newTripData.title} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">建立</button>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              );
+          }
+
+          return (
+              <div className="min-h-screen bg-stone-50 flex flex-col font-sans text-stone-800 overflow-hidden">
+                  <header className="bg-white px-4 py-3 border-b border-stone-100 flex justify-between items-center sticky top-0 z-30 shadow-sm flex-none">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                          <button onClick={() => setCurrentTripId(null)} className="p-2 hover:bg-stone-50 rounded-full text-stone-500"><ChevronLeft/></button>
+                          <h1 className="font-bold text-lg truncate">{currentTrip.title}</h1>
+                      </div>
+                      <div className="flex gap-2">
+                          <button onClick={() => setShowRecommendations(!showRecommendations)} className={`p-2 rounded-full transition-colors ${showRecommendations ? 'bg-yellow-100 text-yellow-600' : 'text-stone-400 hover:bg-stone-50'}`}><Lightbulb size={20}/></button>
+                          <button onClick={() => setIsFlightModalOpen(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full"><Plane size={20}/></button>
+                          <button onClick={() => setIsImportModalOpen(true)} className="p-2 text-stone-600 hover:bg-stone-100 rounded-full"><ListPlus size={20}/></button>
+                          <button onClick={handleCopyItinerary} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><Copy size={20}/></button>
+                      </div>
+                  </header>
+
+                  <div className="flex-1 relative flex overflow-auto">
+                      {activeTab === 'itinerary' ? (
+                          <div className="flex-1 flex flex-col h-full min-w-[320px]">
+                              <div className="flex overflow-x-auto p-2 gap-2 bg-white border-b border-stone-100 no-scrollbar z-20 shadow-sm flex-none sticky top-0">
+                                  {currentTrip.days.map((day, idx) => (
+                                      <button key={day.id} onClick={() => setCurrentDayIndex(idx)} className={`flex-none px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${currentDayIndex === idx ? 'bg-indigo-600 text-white shadow-md' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                                          {day.date}
+                                      </button>
+                                  ))}
+                                  <button onClick={() => { const newDays = [...currentTrip.days, {id: generateId(), date: `Day ${currentTrip.days.length+1}`, activities:[]}]; handleUpdateTrip(currentTrip.id, {days: newDays}); setCurrentDayIndex(newDays.length-1); }} className="px-3 py-2 bg-stone-100 text-stone-400 rounded-full hover:bg-stone-200"><Plus size={16}/></button>
+                              </div>
+
+                              <div className="flex-1 overflow-y-auto p-4 pb-24 custom-scrollbar relative">
+                                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 mb-6 flex flex-col gap-3">
+                                      <div className="flex justify-between items-start">
+                                          <h2 className="text-2xl font-bold text-stone-800">Day {currentDayIndex + 1}</h2>
+                                          <button onClick={toggleWeather} className="bg-stone-50 px-2 py-1 rounded-lg border border-stone-100 hover:bg-stone-100"><WeatherIcon type={currentDay.weather} /></button>
+                                      </div>
+                                      <div className="flex items-center gap-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                          <Bed size={18} className="text-indigo-500 flex-shrink-0" />
+                                          <input type="text" placeholder="輸入今晚住宿..." value={currentDay.hotel || ""} onChange={(e) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].hotel = e.target.value; handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} className="bg-transparent w-full text-stone-700 font-medium placeholder-indigo-300 outline-none"/>
+                                      </div>
+                                  </div>
+
+                                  <div className="space-y-0">
+                                      {(currentDay.activities || []).length === 0 ? (
+                                          <div className="text-center py-12 text-stone-400"><Map className="w-12 h-12 mx-auto mb-2 opacity-20"/><p>點擊 + 開始規劃</p></div>
+                                      ) : (
+                                          currentDay.activities.map(act => (
+                                              <ActivityItem key={act.id} activity={act} onUpdate={handleUpdateActivity} onDelete={handleDeleteActivity} openNavigation={openNavigation} />
+                                          ))
+                                      )}
+                                  </div>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="flex-1 overflow-auto min-w-[320px]">
+                              <ToolsView trip={currentTrip} onUpdate={handleUpdateTrip} />
+                          </div>
+                      )}
+
+                      {showRecommendations && activeTab === 'itinerary' && (
+                          <div className="absolute inset-y-0 right-0 w-full md:w-80 bg-white shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300 border-l border-stone-200">
+                              <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-yellow-50">
+                                  <h3 className="font-bold text-yellow-800 flex items-center gap-2"><Lightbulb size={18}/> AI 靈感推薦</h3>
+                                  <button onClick={() => setShowRecommendations(false)} className="p-1 hover:bg-yellow-100 rounded-full"><X size={18}/></button>
+                              </div>
+                              <div className="p-4 border-b border-stone-100">
+                                  <button onClick={handleGetRecommendations} disabled={loadingRecs} className="w-full py-3 bg-white border-2 border-yellow-400 text-yellow-700 font-bold rounded-xl shadow-sm hover:bg-yellow-50 flex items-center justify-center gap-2">
+                                      {loadingRecs ? <Loader2 className="animate-spin"/> : <Sparkles/>} 分析行程並推薦
+                                  </button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-4 bg-stone-50 space-y-3">
+                                  {(recommendations[currentDayIndex] || []).map((rec, i) => (
+                                      <RecommendationCard key={i} suggestion={rec} onAdd={handleAddRecommendation} />
+                                  ))}
+                                  {(!recommendations[currentDayIndex] || recommendations[currentDayIndex].length === 0) && <div className="text-center text-stone-400 py-10 text-sm">點擊上方按鈕<br/>讓 AI 尋找順路景點</div>}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+
+                  <nav className="bg-white border-t border-stone-200 px-6 py-3 flex justify-around items-center z-30 pb-safe flex-none">
+                      <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1 ${activeTab === 'itinerary' ? 'text-indigo-600' : 'text-stone-400'}`}>
+                          <Map size={24} strokeWidth={activeTab === 'itinerary' ? 2.5 : 2} />
+                          <span className="text-[10px] font-bold">行程</span>
+                      </button>
+                      
+                      {activeTab === 'itinerary' && (
+                          <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg shadow-indigo-200 -mt-8 border-4 border-stone-50 hover:scale-105 transition-transform">
+                              <Plus size={24} />
+                          </button>
+                      )}
+
+                      <button onClick={() => setActiveTab('tools')} className={`flex flex-col items-center gap-1 ${activeTab === 'tools' ? 'text-indigo-600' : 'text-stone-400'}`}>
+                          <LayoutGrid size={24} strokeWidth={activeTab === 'tools' ? 2.5 : 2} />
+                          <span className="text-[10px] font-bold">工具</span>
+                      </button>
+                  </nav>
+
+                  {isModalOpen && (
+                      <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end justify-center z-50" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
+                          <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-safe animate-in slide-in-from-bottom duration-200 overflow-y-auto max-h-[90vh]">
+                              <h3 className="text-xl font-bold mb-4 text-stone-800">新增行程</h3>
+                              <div className="space-y-3">
+                                  <div className="flex gap-3">
+                                      <input type="time" value={newActivity.time} onChange={e=>setNewActivity({...newActivity, time:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none w-1/3 font-mono text-center font-bold text-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                                      <select value={newActivity.type} onChange={e=>setNewActivity({...newActivity, type:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none flex-1 font-bold text-stone-600 outline-none focus:ring-2 focus:ring-indigo-500">
+                                          {Object.entries(ACTIVITY_TYPES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                                      </select>
+                                  </div>
+                                  <input type="text" placeholder="標題" value={newActivity.title} onChange={e=>setNewActivity({...newActivity, title:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-bold text-lg outline-none placeholder-stone-300 focus:ring-2 focus:ring-indigo-500" autoFocus />
+                                  <input type="text" placeholder="地點 (導航用)" value={newActivity.location} onChange={e=>setNewActivity({...newActivity, location:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl text-stone-600 outline-none placeholder-stone-300 focus:ring-2 focus:ring-indigo-500" />
+                                  <button onClick={handleAddActivity} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 mt-2 hover:bg-indigo-700">加入</button>
+                              </div>
+                          </div>
+                      </div>
+                  )}
+
+                  {showCopyToast && (
+                      <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-stone-800 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-in fade-in slide-in-from-top-4">
+                          <Check size={16} className="text-green-400" /> 行程已複製
+                      </div>
+                  )}
+
+                  <MapImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={handleImportMapList} currentTrip={currentTrip} tripDuration={currentTrip.days.length} />
+                  <FlightDetailModal isOpen={isFlightModalOpen} onClose={() => setIsFlightModalOpen(false)} currentTrip={currentTrip} onUpdateTrip={handleUpdateTrip} />
+              </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TravelPlanner />);
+    </script>
+</body>
+</html>
