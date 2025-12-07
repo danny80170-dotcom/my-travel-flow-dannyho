@@ -176,16 +176,25 @@
           other: { label: "其他", icon: MapPin, color: "text-gray-600 bg-gray-50 border-gray-200" },
         };
 
-        // --- Helper Function: 計算日期 ---
+        // --- Helper Function: 計算日期 (修復時區問題) ---
         const calculateDate = (startDate, dayIndex) => {
             if (!startDate) return "";
             try {
-                const date = new Date(startDate);
-                date.setDate(date.getDate() + dayIndex);
-                const month = date.getMonth() + 1;
-                const day = date.getDate();
+                // 手動解析 YYYY-MM-DD，避免 new Date() 的 UTC 時區偏移問題
+                const parts = startDate.split('-');
+                if (parts.length !== 3) return ""; // 格式不對就回傳空
+                
+                const year = parseInt(parts[0]);
+                const monthIndex = parseInt(parts[1]) - 1; // 月份從 0 開始
+                const day = parseInt(parts[2]);
+
+                const date = new Date(year, monthIndex, day);
+                date.setDate(date.getDate() + dayIndex); // 加上天數偏移
+                
+                const m = date.getMonth() + 1;
+                const d = date.getDate();
                 const weekDay = ['日','一','二','三','四','五','六'][date.getDay()];
-                return `${month}/${day} (${weekDay})`;
+                return `${m}/${d} (${weekDay})`;
             } catch (e) {
                 return "";
             }
