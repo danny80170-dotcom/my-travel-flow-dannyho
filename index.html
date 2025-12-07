@@ -21,7 +21,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
     <style>
-        /* 關鍵修正：強制 html, body, #root 佔滿 100% 高度，不允許溢出 */
+        /* 關鍵修正：使用 fixed inset-0 確保 iOS 上佔滿全螢幕且不被切裁 */
         html, body { 
             height: 100%;
             width: 100%;
@@ -29,12 +29,20 @@
             padding: 0;
             font-family: 'Inter', sans-serif; 
             background-color: #fffbf0; 
-            overflow: hidden; /* 禁止 Body 捲動，交給內部容器 */
+            overflow: hidden; /* 禁止 Body 捲動 */
             overscroll-behavior: none;
+            position: fixed; /* 鎖定 Body 位置，避免橡皮筋效果 */
         }
+        
         #root {
             height: 100%;
             width: 100%;
+            overflow: hidden;
+        }
+
+        /* iOS 慣性捲動修復 */
+        .scrolling-touch {
+            -webkit-overflow-scrolling: touch;
         }
         
         h1, h2, h3, .japanese-font {
@@ -827,6 +835,7 @@
           const [currentTripId, setCurrentTripId] = useState(null);
           const [currentDayIndex, setCurrentDayIndex] = useState(0);
           
+          // UI States
           const [isModalOpen, setIsModalOpen] = useState(false);
           const [isImportModalOpen, setIsImportModalOpen] = useState(false);
           const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
@@ -856,6 +865,7 @@
           const currentTrip = trips.find(t => t.id === currentTripId);
           const currentDay = currentTrip ? currentTrip.days[currentDayIndex] : null;
 
+          // ... (CRUD Logic same as before) ...
           const handleUpdateTrip = (id, data) => setTrips(trips.map(t => t.id === id ? { ...t, ...data } : t));
           const handleDeleteTrip = (id) => { if(confirm("刪除此行程？")) setTrips(trips.filter(t => t.id !== id)); setCurrentTripId(null); };
           
@@ -910,6 +920,7 @@
             handleUpdateTrip(currentTripId, { days: updatedDays });
           };
 
+          // ... (Import, Suggestion, Weather, Copy Logic same as before) ...
           const handleImportMapList = (newTripDays, newTripTitle) => {
               const updatedTrips = trips.map(t => {
                   if (t.id === currentTripId) {
@@ -981,7 +992,7 @@
                   setShowCopyToast(true); setTimeout(() => setShowCopyToast(false), 2000);
               });
           };
-
+          
           const WeatherIcon = ({ type }) => {
               if (type === 'rainy') return <div className="flex items-center gap-1 text-blue-500"><CloudSun size={16}/> <span className="text-xs">雨天</span></div>;
               if (type === 'cloudy') return <div className="flex items-center gap-1 text-stone-500"><CloudSun size={16}/> <span className="text-xs">多雲</span></div>;
@@ -990,7 +1001,7 @@
 
           if (!currentTrip) {
               return (
-                  <div className="h-[100dvh] w-full p-6 pb-24 overflow-y-auto relative z-10">
+                  <div className="fixed inset-0 w-full p-6 pb-24 overflow-y-auto scrolling-touch relative z-10">
                       <SakuraBackground />
                       <JapaneseDecoration />
                       <header className="mb-8 pt-4 flex justify-between items-center relative z-10">
@@ -1014,7 +1025,7 @@
 
           // Detail View
           return (
-              <div className="h-[100dvh] w-full flex flex-col font-sans text-stone-800 overflow-hidden relative">
+              <div className="fixed inset-0 w-full flex flex-col font-sans text-stone-800 overflow-hidden relative">
                   <SakuraBackground />
                   
                   <header className="bg-white/90 backdrop-blur-sm px-4 py-3 border-b border-stone-200 flex justify-between items-center sticky top-0 z-30 shadow-sm flex-none">
@@ -1049,7 +1060,7 @@
                                   <button onClick={() => { const newDays = [...currentTrip.days, {id: generateId(), date: `Day ${currentTrip.days.length+1}`, activities:[]}]; handleUpdateTrip(currentTrip.id, {days: newDays}); setCurrentDayIndex(newDays.length-1); }} className="px-3 py-2 bg-white border border-stone-200 text-stone-400 rounded-full hover:bg-stone-50"><Plus size={16}/></button>
                               </div>
 
-                              <div className="flex-1 overflow-y-auto p-4 pb-24 custom-scrollbar relative overscroll-contain">
+                              <div className="flex-1 overflow-y-auto scrolling-touch p-4 pb-24 custom-scrollbar relative overscroll-contain">
                                   {/* Day Info */}
                                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-stone-200 mb-6 flex flex-col gap-3">
                                       <div className="flex justify-between items-start">
@@ -1083,7 +1094,7 @@
                               </div>
                           </div>
                       ) : (
-                          <div className="flex-1 overflow-y-auto min-w-[320px]">
+                          <div className="flex-1 overflow-y-auto scrolling-touch min-w-[320px]">
                               <ToolsView trip={currentTrip} onUpdate={handleUpdateTrip} />
                           </div>
                       )}
