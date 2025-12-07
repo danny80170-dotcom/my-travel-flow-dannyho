@@ -878,7 +878,9 @@
           const [activeMapLocation, setActiveMapLocation] = useState(null); 
           
           const [isCreateOpen, setIsCreateOpen] = useState(false);
-          const [newTripData, setNewTripData] = useState({ title: "", date: new Date().toISOString().split('T')[0], days: 3 });
+          const [newTripData, setNewTripData] = useState({ title: "", date: new Date().toISOString().split('T')[0], days: 3, useAI: false });
+          const [isCreating, setIsCreating] = useState(false);
+          
           const [newActivity, setNewActivity] = useState({ time: "09:00", title: "", type: "sightseeing", location: "", note: "" });
           const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
@@ -900,18 +902,52 @@
           const handleUpdateTrip = (id, data) => setTrips(trips.map(t => t.id === id ? { ...t, ...data } : t));
           const handleDeleteTrip = (id) => { if(confirm("刪除此行程？")) setTrips(trips.filter(t => t.id !== id)); setCurrentTripId(null); };
           
-          const handleCreateTrip = () => {
-              const newTrip = { 
-                  id: generateId(), 
-                  title: newTripData.title, 
-                  startDate: newTripData.date, 
-                  arrival: { time: "", location: "" }, 
-                  departure: { time: "", location: "" }, 
-                  expenses: [], 
-                  emergencyContacts: [],
-                  days: Array.from({length: newTripData.days}, (_, i) => ({ id: generateId(), date: `Day ${i+1}`, hotel: "", activities: [] }))
-              };
-              setTrips([...trips, newTrip]); setIsCreateOpen(false); setNewTripData({ title: "", date: new Date().toISOString().split('T')[0], days: 3 });
+          const handleCreateTrip = async () => {
+              setIsCreating(true);
+              try {
+                  let generatedDays = [];
+                  
+                  if (newTripData.useAI) {
+                      const prompt = `請為我規劃一個「${newTripData.title}」的旅遊行程。出發日期：${newTripData.date}。天數：${newTripData.days}天。請回傳符合以下 JSON 格式的資料 (不需要 Markdown 標記)：{ "days": [ { "date": "Day 1", "hotel": "建議住宿地點", "activities": [ { "time": "10:00", "title": "行程名稱", "type": "sightseeing/food/shopping", "location": "地點名稱", "note": "簡單介紹" } ] } ] }。Activity types: sightseeing, food, shopping, transport, accommodation, other. 確保每天有 3-4 個行程。`;
+                      const result = await callGemini(prompt);
+                      if (result && result.days) {
+                          generatedDays = result.days.map((d, i) => ({
+                              id: generateId(),
+                              date: d.date || `Day ${i+1}`,
+                              hotel: d.hotel || "",
+                              weather: "sunny",
+                              activities: (d.activities || []).map(a => ({...a, id: generateId()}))
+                          }));
+                      }
+                  } 
+                  
+                  if (generatedDays.length === 0) {
+                       generatedDays = Array.from({length: newTripData.days}, (_, i) => ({ 
+                          id: generateId(), 
+                          date: `Day ${i+1}`, 
+                          hotel: "", 
+                          activities: [] 
+                      }));
+                  }
+
+                  const newTrip = { 
+                      id: generateId(), 
+                      title: newTripData.title, 
+                      startDate: newTripData.date, 
+                      arrival: { time: "", location: "" }, 
+                      departure: { time: "", location: "" }, 
+                      expenses: [], 
+                      emergencyContacts: [],
+                      days: generatedDays
+                  };
+                  setTrips([...trips, newTrip]); 
+                  setIsCreateOpen(false); 
+                  setNewTripData({ title: "", date: new Date().toISOString().split('T')[0], days: 3, useAI: false });
+              } catch (error) {
+                  alert("建立行程失敗 (AI 可能忙碌中，請稍後再試): " + error.message);
+              } finally {
+                  setIsCreating(false);
+              }
           };
 
           const handleUpdateActivity = (updatedAct) => {
@@ -1051,7 +1087,48 @@
                           ))}
                           <button onClick={() => setIsCreateOpen(true)} className="mt-4 w-full py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-rose-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-2"><Plus/> 建立新旅程</button>
                       </div>
-                      {isCreateOpen && (<div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in"><h3 className="text-xl font-bold mb-4 text-stone-800 japanese-font">新旅程</h3><input type="text" placeholder="名稱 (如: 京都賞楓之旅)" value={newTripData.title} onChange={e=>setNewTripData({...newTripData, title:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" autoFocus /><input type="date" value={newTripData.date} onChange={e=>setNewTripData({...newTripData, date:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" /><div className="flex justify-end gap-2 mt-4"><button onClick={()=>setIsCreateOpen(false)} className="px-4 py-2 text-stone-500">取消</button><button onClick={handleCreateTrip} disabled={!newTripData.title} className="px-6 py-2 btn-sakura text-white rounded-xl font-bold hover:opacity-90">建立</button></div></div></div>)}
+                      
+                      {isCreateOpen && (
+                        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in">
+                                <h3 className="text-xl font-bold mb-4 text-stone-800 japanese-font">新旅程</h3>
+                                
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-stone-500 mb-1">旅程名稱</label>
+                                        <input type="text" placeholder="例如：京都五天四夜賞楓" value={newTripData.title} onChange={e=>setNewTripData({...newTripData, title:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" autoFocus />
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-bold text-stone-500 mb-1">出發日期</label>
+                                            <input type="date" value={newTripData.date} onChange={e=>setNewTripData({...newTripData, date:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-stone-500 mb-1">天數</label>
+                                            <input type="number" min="1" max="30" value={newTripData.days} onChange={e=>setNewTripData({...newTripData, days:parseInt(e.target.value) || 1})} className="w-full p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer" onClick={() => setNewTripData({...newTripData, useAI: !newTripData.useAI})}>
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${newTripData.useAI ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-stone-300'}`}>
+                                            {newTripData.useAI && <Check size={14} className="text-white" />}
+                                        </div>
+                                        <span className="text-sm font-bold text-indigo-900 flex items-center gap-1"><Sparkles size={14}/> AI 自動規劃行程</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 mt-6">
+                                    <button onClick={()=>setIsCreateOpen(false)} className="px-4 py-2 text-stone-500" disabled={isCreating}>取消</button>
+                                    <button onClick={handleCreateTrip} disabled={!newTripData.title || isCreating} className="px-6 py-2 btn-sakura text-white rounded-xl font-bold hover:opacity-90 flex items-center gap-2">
+                                        {isCreating && <Loader2 className="animate-spin" size={16} />}
+                                        {isCreating ? "規劃中..." : "建立"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                      )}
+
                       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
                   </div>
               );
