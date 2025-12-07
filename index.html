@@ -180,17 +180,13 @@
         const calculateDate = (startDate, dayIndex) => {
             if (!startDate) return "";
             try {
-                // 手動解析 YYYY-MM-DD，避免 new Date() 的 UTC 時區偏移問題
                 const parts = startDate.split('-');
-                if (parts.length !== 3) return ""; // 格式不對就回傳空
-                
+                if (parts.length !== 3) return ""; 
                 const year = parseInt(parts[0]);
-                const monthIndex = parseInt(parts[1]) - 1; // 月份從 0 開始
+                const monthIndex = parseInt(parts[1]) - 1; 
                 const day = parseInt(parts[2]);
-
                 const date = new Date(year, monthIndex, day);
-                date.setDate(date.getDate() + dayIndex); // 加上天數偏移
-                
+                date.setDate(date.getDate() + dayIndex); 
                 const m = date.getMonth() + 1;
                 const d = date.getDate();
                 const weekDay = ['日','一','二','三','四','五','六'][date.getDay()];
@@ -381,24 +377,22 @@
                     .catch(() => setWeather(null));
             }, [location]);
             if (!weather) return null;
-            return <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 text-blue-600 text-sm font-medium animate-in fade-in"><CloudSun size={16} /><span>{weather}</span></div>;
+            return <div className="flex items-center gap-1 text-stone-500 text-sm font-medium"><CloudSun size={16} /><span>{weather}</span></div>;
         }
 
-        // 每日導遊總結元件
         function GuideSection({ day, tripTitle, dayIndex }) {
             const [guideInfo, setGuideInfo] = useState(day.guideInfo || null);
             const [isLoading, setIsLoading] = useState(false);
-            const [isExpanded, setIsExpanded] = useState(false); // 控制開關狀態
+            const [isExpanded, setIsExpanded] = useState(false);
 
             const handleCallGuide = async () => {
-                // 如果已經有資料，再次點擊只是切換顯示
                 if (guideInfo) {
                     setIsExpanded(true);
                     return;
                 }
 
                 setIsLoading(true);
-                setIsExpanded(true); // 開始載入時展開
+                setIsExpanded(true);
                 
                 const activitiesList = day.activities.map(a => `${a.time} ${a.title} (${a.type})`).join(', ');
                 const foodSpots = day.activities.filter(a => a.type === 'food').map(a => a.title).join(', ');
@@ -419,32 +413,29 @@
                     setGuideInfo(result);
                 } catch (e) {
                     alert(e.message);
-                    setIsExpanded(false); // 失敗則關閉
+                    setIsExpanded(false);
                 } finally {
                     setIsLoading(false);
                 }
             };
 
             return (
-                <div className="mt-4 mb-6">
-                    {/* 按鈕區域：當未展開時顯示 */}
+                <div className="mt-4">
                     {!isExpanded ? (
                         <button 
                             onClick={handleCallGuide}
-                            className={`w-full py-3 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${guideInfo ? 'bg-amber-100 text-amber-800' : 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 hover:from-amber-100 hover:to-orange-100'}`}
+                            className={`w-full py-2.5 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm text-sm ${guideInfo ? 'bg-amber-50 text-amber-800' : 'bg-white text-stone-500 hover:bg-amber-50 hover:text-amber-700'}`}
                         >
-                            <UserCheck size={18} />
-                            {guideInfo ? "📖 查看導遊筆記" : "呼叫導遊 & 美食推薦"}
+                            <UserCheck size={16} />
+                            {guideInfo ? "查看導遊筆記" : "呼叫導遊"}
                         </button>
                     ) : (
-                        /* 內容區域：當展開時顯示 */
                         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden guide-section">
                             <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex justify-between items-center">
-                                <h4 className="font-bold text-amber-900 flex items-center gap-2 japanese-font">
-                                    <UserCheck size={18}/> 導遊筆記
+                                <h4 className="font-bold text-amber-900 flex items-center gap-2 japanese-font text-sm">
+                                    <UserCheck size={16}/> 導遊筆記
                                 </h4>
-                                {/* 關閉按鈕：點擊後 setIsExpanded(false) */}
-                                <button onClick={() => setIsExpanded(false)} className="text-amber-400 hover:text-amber-600 p-1 rounded-full hover:bg-amber-100"><X size={18}/></button>
+                                <button onClick={() => setIsExpanded(false)} className="text-amber-400 hover:text-amber-600 p-1 rounded-full hover:bg-amber-100"><X size={16}/></button>
                             </div>
                             
                             {isLoading ? (
@@ -500,7 +491,7 @@
                 setShow(true);
                 
                 const prompt = `針對地點「${activity.title} (${activity.location})」提供深度導遊介紹。
-                類型：${activity.type}
+                类型：${activity.type}
                 請回傳 JSON：
                 {
                     "intro": "200-300字深度介紹，講述歷史故事、建築特色或在地軼聞。語氣要像專業導遊。",
@@ -586,21 +577,22 @@
             const dotColor = typeConfig.color ? typeConfig.color.split(' ')[1] : 'bg-gray-400';
 
             return (
-                <div className="relative pl-6 pb-8 group last:pb-0 z-10">
-                    <div className="absolute left-[7px] top-3 bottom-0 w-px bg-stone-300 group-last:hidden"></div>
-                    <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-[#fffbf0] shadow-sm z-10 ${dotColor}`}></div>
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-stone-200 hover:shadow-md transition-all relative overflow-hidden">
+                <div className="relative pl-8 pb-8 group last:pb-0 z-10">
+                    <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-stone-200 group-last:hidden"></div>
+                    <div className={`absolute left-[3px] top-6 w-5 h-5 rounded-full border-4 border-[#fffbf0] z-10 ${dotColor} shadow-sm`}></div>
+                    
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100 hover:shadow-md transition-all relative overflow-hidden group-hover:border-stone-200">
                         <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-rose-500 rounded-full hover:bg-rose-50"><Pencil size={14} /></button>
                             <button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-red-50"><Trash2 size={14} /></button>
                         </div>
-                        <div className="flex justify-between items-start mb-2 pr-12">
+                        <div className="flex justify-between items-start mb-3 pr-12">
                             <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-mono text-sm font-bold text-stone-500">{activity.time}</span>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="font-mono text-sm font-bold text-stone-400">{activity.time}</span>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${typeConfig.color}`}>{typeConfig.label}</span>
                                 </div>
-                                <h3 className="font-bold text-stone-800 text-lg japanese-font">{activity.title}</h3>
+                                <h3 className="font-bold text-stone-800 text-lg">{activity.title}</h3>
                             </div>
                         </div>
                         {activity.location && (
@@ -617,7 +609,7 @@
                             </div>
                         )}
                         {activity.note && (
-                            <div className="text-sm text-stone-600 bg-[#fdfcf6] p-3 rounded-lg border border-stone-100 mt-2">
+                            <div className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100">
                                 <p className="whitespace-pre-wrap">{activity.note}</p>
                                 <HighlightTags text={activity.note} />
                             </div>
@@ -1113,23 +1105,44 @@
 
                               <div className="flex-1 overflow-y-auto scrolling-touch p-4 pb-24 custom-scrollbar relative overscroll-contain min-h-0">
                                   {/* Day Info */}
-                                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-stone-200 mb-6 flex flex-col gap-3">
-                                      <div className="flex justify-between items-start">
-                                          <div className="flex items-baseline gap-2">
-                                              <h2 className="text-2xl font-bold text-stone-800 japanese-font flex-shrink-0">Day {currentDayIndex + 1}</h2>
-                                              {/* 強制顯示日期備案，並防止擠壓 */}
-                                              <span className="text-lg font-medium text-stone-500 flex-shrink-0">
+                                  <div className="mb-6">
+                                    <div className="flex justify-between items-center mb-4 px-1">
+                                        <h2 className="text-2xl font-bold text-stone-800 japanese-font flex items-center gap-3">
+                                            <span className="text-rose-600">Day {currentDayIndex + 1}</span>
+                                            <span className="text-lg text-stone-500 font-medium flex-shrink-0">
                                                 {calculateDate(currentTrip.startDate, currentDayIndex) || `(${currentDayIndex + 1})`}
-                                              </span>
-                                          </div>
-                                          <button onClick={toggleWeather} className="bg-white px-2 py-1 rounded-lg border border-stone-200 hover:bg-stone-50"><WeatherIcon type={currentDay.weather} /></button>
-                                      </div>
-                                      <div className="flex items-center gap-2 bg-[#fdfcf6] p-3 rounded-xl border border-stone-200">
-                                          <Bed size={18} className="text-emerald-600 flex-shrink-0" />
-                                          <input type="text" placeholder="輸入今晚住宿..." value={currentDay.hotel || ""} onChange={(e) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].hotel = e.target.value; handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} className="bg-transparent w-full text-stone-700 font-medium placeholder-stone-400 outline-none"/>
-                                      </div>
-                                      <GuideSection day={currentDay} tripTitle={currentTrip.title} dayIndex={currentDayIndex} />
-                                  </div>
+                                            </span>
+                                        </h2>
+                                         <button onClick={toggleWeather} className="bg-white px-3 py-1.5 rounded-full border border-stone-200 shadow-sm hover:bg-stone-50 flex items-center gap-2">
+                                            <span className="text-xs text-stone-500">天氣</span>
+                                            <WeatherIcon type={currentDay.weather} />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Hotel Input Card */}
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex items-center gap-3">
+                                         <div className="p-2 bg-emerald-50 rounded-full text-emerald-600">
+                                            <Bed size={20} />
+                                         </div>
+                                         <div className="flex-1">
+                                             <label className="text-xs text-stone-400 font-bold block mb-1">今晚住宿</label>
+                                             <input 
+                                                type="text" 
+                                                placeholder="輸入飯店名稱..." 
+                                                value={currentDay.hotel || ""} 
+                                                onChange={(e) => {
+                                                  const updatedDays = [...currentTrip.days];
+                                                  updatedDays[currentDayIndex].hotel = e.target.value;
+                                                  handleUpdateTrip(currentTrip.id, { days: updatedDays });
+                                                }} 
+                                                className="w-full bg-transparent text-stone-700 font-bold outline-none placeholder-stone-300"
+                                            />
+                                         </div>
+                                    </div>
+                                    
+                                    {/* Guide Section */}
+                                    <GuideSection day={currentDay} tripTitle={currentTrip.title} dayIndex={currentDayIndex} />
+                                </div>
 
                                   {/* Activity List */}
                                   <div className="space-y-0">
