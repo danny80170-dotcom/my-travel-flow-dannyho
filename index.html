@@ -56,10 +56,8 @@
             Share, Copy, ExternalLink, Check, Sparkles, Loader2, Wand2,
             Download, Smartphone, Pencil, ListPlus, Clock3, Lightbulb,
             CloudSun, Phone, Wallet, Car, Navigation,
-            LayoutGrid, Menu, PanelRightOpen, PanelRightClose
+            LayoutGrid, Menu, PanelRightOpen, PanelRightClose, Settings, Key
         } from 'https://esm.sh/lucide-react@latest?deps=react@18.2.0';
-
-        const apiKey = ""; 
 
         const generateId = () => Date.now() + Math.random();
 
@@ -114,21 +112,36 @@
           other: { label: "其他", icon: MapPin, color: "text-stone-700 bg-stone-100 border-stone-200" },
         };
 
-        // API 呼叫
+        // API 呼叫 (修正：從 localStorage 讀取 Key)
         async function callGemini(prompt, responseMimeType = "application/json") {
           try {
+            // 從 localStorage 讀取 API Key
+            const userApiKey = localStorage.getItem('travel_flow_api_key') || "";
+            
+            if (!userApiKey) {
+                throw new Error("請先點擊右上角設定 (⚙️)，輸入您的 Gemini API Key");
+            }
+
             const response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${userApiKey}`,
               { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: responseMimeType } }) }
             );
-            if (response.ok) {
-                const data = await response.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (responseMimeType === "application/json" && text) return JSON.parse(text);
-                return text;
+            
+            if (!response.ok) {
+                if (response.status === 400 || response.status === 403) {
+                    throw new Error("API Key 無效或已過期，請檢查設定");
+                }
+                throw new Error(`API Error: ${response.statusText}`);
             }
-            throw new Error(`API Error: ${response.statusText}`);
-          } catch (error) { console.error("Gemini API Error:", error); throw error; }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (responseMimeType === "application/json" && text) return JSON.parse(text);
+            return text;
+          } catch (error) { 
+              console.error("Gemini API Error:", error); 
+              throw error; 
+          }
         }
 
         const HighlightTags = ({ text }) => {
@@ -358,6 +371,57 @@
             );
         }
 
+        // -----------------------------------------------------------------------------
+        // 設定 API Key Modal (新增)
+        // -----------------------------------------------------------------------------
+        function SettingsModal({ isOpen, onClose }) {
+            const [apiKeyInput, setApiKeyInput] = useState("");
+
+            useEffect(() => {
+                if (isOpen) {
+                    setApiKeyInput(localStorage.getItem('travel_flow_api_key') || "");
+                }
+            }, [isOpen]);
+
+            const handleSave = () => {
+                localStorage.setItem('travel_flow_api_key', apiKeyInput.trim());
+                alert("API Key 已儲存！");
+                onClose();
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in fade-in zoom-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><Settings size={20}/> 設定</h3>
+                            <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-stone-700 mb-2 flex items-center gap-1">
+                                    <Key size={16}/> Gemini API Key
+                                </label>
+                                <input 
+                                    type="password" 
+                                    value={apiKeyInput} 
+                                    onChange={(e) => setApiKeyInput(e.target.value)} 
+                                    placeholder="貼上您的 API Key..." 
+                                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                                <p className="text-xs text-stone-500 mt-2">
+                                    需要此 Key 才能使用 AI 規劃功能。<br/>
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-indigo-600 underline">在此免費申請 Google AI Key</a>
+                                </p>
+                            </div>
+                            <button onClick={handleSave} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all">儲存設定</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         function MapImportModal({ isOpen, onClose, onImport, currentTrip, tripDuration }) {
             const [importText, setImportText] = useState("");
             const [parsedDays, setParsedDays] = useState([]); 
@@ -377,7 +441,7 @@
                 try {
                     const result = await callGemini(prompt);
                     setParsedDays(result.days); setImportTitle(result.tripTitle || currentTrip.title); setCurrentStep(2);
-                } catch (error) { alert("AI 解析失敗，請確認輸入內容"); } finally { setIsLoading(false); }
+                } catch (error) { alert("AI 解析失敗: " + error.message); } finally { setIsLoading(false); }
             };
             
             if (!isOpen) return null;
@@ -438,6 +502,7 @@
           const [isModalOpen, setIsModalOpen] = useState(false);
           const [isImportModalOpen, setIsImportModalOpen] = useState(false);
           const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
+          const [isSettingsOpen, setIsSettingsOpen] = useState(false); // 新增設定 Modal 狀態
           const [showRecommendations, setShowRecommendations] = useState(false);
           const [recommendations, setRecommendations] = useState({});
           const [loadingRecs, setLoadingRecs] = useState(false);
@@ -546,7 +611,7 @@
               try {
                   const res = await callGemini(prompt);
                   setRecommendations({...recommendations, [currentDayIndex]: res});
-              } catch(e) { alert("AI 忙線中"); } finally { setLoadingRecs(false); }
+              } catch(e) { alert("無法取得推薦: " + e.message); } finally { setLoadingRecs(false); }
           };
 
           const handleAddRecommendation = (suggestion) => {
@@ -598,9 +663,12 @@
           if (!currentTrip) {
               return (
                   <div className="min-h-screen bg-stone-50 p-6 pb-24 overflow-auto">
-                      <header className="mb-8 pt-4">
-                          <h1 className="text-3xl font-bold text-stone-800 tracking-tight">TravelFlow</h1>
-                          <p className="text-stone-500">規劃你的下一段旅程</p>
+                      <header className="mb-8 pt-4 flex justify-between items-center">
+                          <div>
+                              <h1 className="text-3xl font-bold text-stone-800 tracking-tight">TravelFlow</h1>
+                              <p className="text-stone-500">規劃你的下一段旅程</p>
+                          </div>
+                          <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><Settings size={24}/></button>
                       </header>
                       <div className="grid gap-4">
                           {trips.map(trip => (
@@ -628,6 +696,8 @@
                               </div>
                           </div>
                       )}
+                      
+                      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
                   </div>
               );
           }
@@ -640,6 +710,7 @@
                           <h1 className="font-bold text-lg truncate">{currentTrip.title}</h1>
                       </div>
                       <div className="flex gap-2">
+                          <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-stone-400 hover:bg-stone-50 rounded-full"><Settings size={20}/></button>
                           <button onClick={() => setShowRecommendations(!showRecommendations)} className={`p-2 rounded-full transition-colors ${showRecommendations ? 'bg-yellow-100 text-yellow-600' : 'text-stone-400 hover:bg-stone-50'}`}><Lightbulb size={20}/></button>
                           <button onClick={() => setIsFlightModalOpen(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full"><Plane size={20}/></button>
                           <button onClick={() => setIsImportModalOpen(true)} className="p-2 text-stone-600 hover:bg-stone-100 rounded-full"><ListPlus size={20}/></button>
@@ -754,6 +825,7 @@
 
                   <MapImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={handleImportMapList} currentTrip={currentTrip} tripDuration={currentTrip.days.length} />
                   <FlightDetailModal isOpen={isFlightModalOpen} onClose={() => setIsFlightModalOpen(false)} currentTrip={currentTrip} onUpdateTrip={handleUpdateTrip} />
+                  <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
               </div>
           );
         }
