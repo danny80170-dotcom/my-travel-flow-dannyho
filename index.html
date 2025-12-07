@@ -17,17 +17,40 @@
     <!-- 載入 Babel (用於解析 JSX) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- 引入 Google Fonts: Noto Serif TC (更具日式/傳統風格) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f5f5f4; }
+        /* 基礎字體設定 */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #fffbf0; /* 溫暖的米色/和紙色 */
+            background-image: radial-gradient(#ffe4e6 1px, transparent 1px); /* 模擬淡淡的櫻花飄落點綴 */
+            background-size: 20px 20px;
+        }
+        
+        /* 標題使用襯線體 (Serif) 增加日式優雅感 */
+        h1, h2, h3, .japanese-font {
+            font-family: 'Noto Serif TC', serif;
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         /* 確保 iPhone 安全區域 */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .pt-safe { padding-top: env(safe-area-inset-top); }
         
         /* 錯誤顯示樣式 */
         #error-display { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 9999; padding: 20px; color: red; overflow: auto; }
+
+        /* 自定義櫻花粉色按鈕漸層 */
+        .btn-sakura {
+            background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%); /* Rose-400 to Rose-600 */
+        }
+        .text-sakura {
+            color: #e11d48;
+        }
     </style>
 </head>
 <body>
@@ -56,7 +79,8 @@
             Share, Copy, ExternalLink, Check, Sparkles, Loader2, Wand2,
             Download, Smartphone, Pencil, ListPlus, Clock3, Lightbulb,
             CloudSun, Phone, Wallet, Car, Navigation,
-            LayoutGrid, Menu, PanelRightOpen, PanelRightClose, Settings, Key
+            LayoutGrid, Menu, PanelRightOpen, PanelRightClose, Settings, Key,
+            Flower2, Trees // 新增花草圖示
         } from 'https://esm.sh/lucide-react@latest?deps=react@18.2.0';
 
         const generateId = () => Date.now() + Math.random();
@@ -103,13 +127,14 @@
           }
         ];
 
+        // 調整配色為更日系的風格
         const ACTIVITY_TYPES = {
-          sightseeing: { label: "景點", icon: Camera, color: "text-teal-700 bg-teal-50 border-teal-200" },
-          food: { label: "美食", icon: Utensils, color: "text-orange-700 bg-orange-50 border-orange-200" },
-          transport: { label: "交通", icon: Car, color: "text-slate-700 bg-slate-100 border-slate-200" },
-          accommodation: { label: "住宿", icon: Bed, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
-          shopping: { label: "購物", icon: MapPin, color: "text-rose-700 bg-rose-50 border-rose-200" },
-          other: { label: "其他", icon: MapPin, color: "text-stone-700 bg-stone-100 border-stone-200" },
+          sightseeing: { label: "景點", icon: Camera, color: "text-rose-700 bg-rose-50 border-rose-200" }, // 櫻花粉
+          food: { label: "美食", icon: Utensils, color: "text-amber-700 bg-amber-50 border-amber-200" }, // 烤丸子黃/味噌色
+          transport: { label: "交通", icon: Car, color: "text-stone-600 bg-stone-100 border-stone-300" }, // 石頭灰
+          accommodation: { label: "住宿", icon: Bed, color: "text-emerald-700 bg-emerald-50 border-emerald-200" }, // 抹茶綠
+          shopping: { label: "購物", icon: MapPin, color: "text-indigo-700 bg-indigo-50 border-indigo-200" }, // 藍染
+          other: { label: "其他", icon: MapPin, color: "text-gray-600 bg-gray-50 border-gray-200" },
         };
 
         // API 呼叫 (修正：從 localStorage 讀取 Key)
@@ -147,18 +172,18 @@
         const HighlightTags = ({ text }) => {
           if (!text || typeof text !== 'string') return null;
           const keywords = [
-            { key: "必吃", color: "bg-red-100 text-red-600" },
-            { key: "必買", color: "bg-pink-100 text-pink-600" },
-            { key: "必去", color: "bg-teal-100 text-teal-600" },
-            { key: "預約", color: "bg-amber-100 text-amber-700" },
-            { key: "代號", color: "bg-purple-100 text-purple-700" },
-            { key: "注意", color: "bg-yellow-100 text-yellow-700" },
+            { key: "必吃", color: "bg-rose-100 text-rose-700 border border-rose-200" },
+            { key: "必買", color: "bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200" },
+            { key: "必去", color: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+            { key: "預約", color: "bg-amber-100 text-amber-800 border border-amber-200" },
+            { key: "代號", color: "bg-purple-100 text-purple-700 border border-purple-200" },
+            { key: "注意", color: "bg-red-50 text-red-600 border border-red-200" },
           ];
           return (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex flex-wrap gap-1 mt-2">
               {keywords.map(k => {
                 if (text.includes(k.key)) {
-                  return <span key={k.key} className={`text-[10px] px-1.5 py-0.5 rounded ${k.color} font-medium`}>{k.key}重點</span>
+                  return <span key={k.key} className={`text-[10px] px-2 py-0.5 rounded-full ${k.color} font-medium`}>{k.key}重點</span>
                 }
                 return null;
               })}
@@ -176,7 +201,7 @@
 
             if (isEditing) {
                 return (
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 mb-4 animate-in fade-in">
+                    <div className="bg-white p-4 rounded-xl shadow-md border border-stone-200 mb-4 animate-in fade-in">
                         <div className="space-y-3">
                             <div className="flex gap-2">
                                 <input type="time" value={editedActivity.time} onChange={(e) => setEditedActivity({...editedActivity, time: e.target.value})} className="p-2 border border-stone-200 rounded-lg text-sm bg-stone-50" />
@@ -189,7 +214,7 @@
                             <textarea placeholder="備註: 必吃美食、預約代號..." value={editedActivity.note} onChange={(e) => setEditedActivity({...editedActivity, note: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm h-20 resize-none"></textarea>
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-stone-500 hover:bg-stone-100 rounded-lg text-sm">取消</button>
-                                <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm shadow-sm hover:bg-indigo-700">儲存</button>
+                                <button onClick={handleSave} className="px-4 py-2 btn-sakura text-white rounded-lg text-sm shadow-sm hover:opacity-90">儲存</button>
                             </div>
                         </div>
                     </div>
@@ -200,26 +225,26 @@
 
             return (
                 <div className="relative pl-6 pb-8 group last:pb-0">
-                    <div className="absolute left-[7px] top-3 bottom-0 w-px bg-stone-200 group-last:hidden"></div>
-                    <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 ${dotColor}`}></div>
-                    <div className="bg-white rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-stone-100 hover:shadow-md transition-all relative overflow-hidden">
+                    <div className="absolute left-[7px] top-3 bottom-0 w-px bg-stone-300 group-last:hidden"></div>
+                    <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-[#fffbf0] shadow-sm z-10 ${dotColor}`}></div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-stone-200 hover:shadow-md transition-all relative overflow-hidden">
                         <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-indigo-600 rounded-full hover:bg-stone-50"><Pencil size={14} /></button>
-                            <button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-stone-50"><Trash2 size={14} /></button>
+                            <button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-rose-500 rounded-full hover:bg-rose-50"><Pencil size={14} /></button>
+                            <button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-red-50"><Trash2 size={14} /></button>
                         </div>
                         <div className="flex justify-between items-start mb-2 pr-12">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-mono text-sm font-bold text-stone-400">{activity.time}</span>
+                                    <span className="font-mono text-sm font-bold text-stone-500">{activity.time}</span>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${typeConfig.color}`}>{typeConfig.label}</span>
                                 </div>
-                                <h3 className="font-bold text-stone-800 text-lg">{activity.title}</h3>
+                                <h3 className="font-bold text-stone-800 text-lg japanese-font">{activity.title}</h3>
                             </div>
                         </div>
                         {activity.location && (
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="flex items-center gap-1 text-sm text-stone-500 truncate max-w-[200px]">
-                                    <MapPin size={14} /><span>{activity.location}</span>
+                                    <MapPin size={14} className="text-rose-400"/><span>{activity.location}</span>
                                 </div>
                                 <button onClick={() => openNavigation(activity.location)} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors">
                                     <Navigation size={12} /> 導航
@@ -227,7 +252,7 @@
                             </div>
                         )}
                         {activity.note && (
-                            <div className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100">
+                            <div className="text-sm text-stone-600 bg-[#fdfcf6] p-3 rounded-lg border border-stone-100">
                                 <p className="whitespace-pre-wrap">{activity.note}</p>
                                 <HighlightTags text={activity.note} />
                             </div>
@@ -259,9 +284,14 @@
 
             return (
                 <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 pb-32">
-                    <h2 className="text-2xl font-bold text-stone-800 mb-6">旅程工具箱</h2>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Plane size={20} className="text-indigo-500"/> 航班資訊</h3>
+                    <h2 className="text-2xl font-bold text-stone-800 mb-6 japanese-font flex items-center gap-2">
+                         <Settings size={24} className="text-rose-500" /> 旅程工具箱
+                    </h2>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 relative overflow-hidden">
+                         <div className="absolute -right-5 -top-5 opacity-5 pointer-events-none">
+                            <Plane size={100} />
+                         </div>
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2 japanese-font"><Plane size={20} className="text-rose-500"/> 航班資訊</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
                                 <div className="text-xs text-stone-400 font-bold uppercase mb-1">去程 Arrival</div>
@@ -275,8 +305,10 @@
                             </div>
                         </div>
                     </div>
+                    
+                    {/* 其他工具區塊保持不變，但加上 bg-white 和 shadow-sm */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Bed size={20} className="text-indigo-500"/> 住宿總覽</h3>
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2 japanese-font"><Bed size={20} className="text-rose-500"/> 住宿總覽</h3>
                         <div className="space-y-3">
                             {(trip.days || []).map((day, idx) => (
                                 <div key={day.id} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
@@ -286,15 +318,16 @@
                             ))}
                         </div>
                     </div>
+                    
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-stone-700 flex items-center gap-2"><Wallet size={20} className="text-indigo-500"/> 記帳/預算</h3>
-                            <div className="text-sm bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold">總計: {totalExpense.toLocaleString()}</div>
+                            <h3 className="font-bold text-stone-700 flex items-center gap-2 japanese-font"><Wallet size={20} className="text-rose-500"/> 記帳/預算</h3>
+                            <div className="text-sm bg-rose-50 text-rose-700 px-3 py-1 rounded-full font-bold">總計: {totalExpense.toLocaleString()}</div>
                         </div>
                         <div className="flex gap-2 mb-4">
                             <input type="text" placeholder="項目" value={newExpense.title} onChange={e => setNewExpense({...newExpense, title: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
                             <input type="number" placeholder="金額" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} className="w-24 p-2 border border-stone-200 rounded-lg text-sm" />
-                            <button onClick={addExpense} className="p-2 bg-indigo-600 text-white rounded-lg"><Plus size={20}/></button>
+                            <button onClick={addExpense} className="p-2 btn-sakura text-white rounded-lg"><Plus size={20}/></button>
                         </div>
                         <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
                             {(trip.expenses || []).map(exp => (
@@ -308,12 +341,13 @@
                             ))}
                         </div>
                     </div>
+
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2"><Phone size={20} className="text-indigo-500"/> 緊急聯絡</h3>
+                        <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2 japanese-font"><Phone size={20} className="text-rose-500"/> 緊急聯絡</h3>
                         <div className="flex gap-2 mb-4">
                             <input type="text" placeholder="名稱" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
                             <input type="tel" placeholder="電話" value={newContact.phone} onChange={e => setNewContact({...newContact, phone: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm" />
-                            <button onClick={addContact} className="p-2 bg-indigo-600 text-white rounded-lg"><Plus size={20}/></button>
+                            <button onClick={addContact} className="p-2 btn-sakura text-white rounded-lg"><Plus size={20}/></button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {(trip.emergencyContacts || []).map(contact => (
@@ -344,28 +378,31 @@
 
             return (
                 <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto">
-                    <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><Plane size={24}/> 航班設定</h3>
+                    <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[90vh] overflow-y-auto relative overflow-hidden">
+                        {/* 裝飾背景 */}
+                        <div className="absolute top-0 right-0 opacity-10 pointer-events-none"><Plane size={120} className="text-stone-300"/></div>
+                        
+                        <div className="flex justify-between items-center mb-6 relative z-10">
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2 japanese-font"><Plane size={24} className="text-rose-500"/> 航班設定</h3>
                             <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-6 relative z-10">
                             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                                 <h4 className="font-bold text-blue-800 mb-3 flex items-center gap-2"><Bus size={18}/> 去程</h4>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">時間</label><input type="time" value={arrivalDetails.time || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, time: e.target.value})} className="w-full p-2 border border-blue-200 rounded-lg text-sm" /></div>
-                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">地點</label><input type="text" value={arrivalDetails.location || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-blue-200 rounded-lg text-sm" /></div>
+                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">時間</label><input type="time" value={arrivalDetails.time || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, time: e.target.value})} className="w-full p-2 border border-blue-200 rounded-lg text-sm bg-white" /></div>
+                                    <div><label className="block text-xs font-bold text-blue-600 mb-1">地點</label><input type="text" value={arrivalDetails.location || ""} onChange={(e) => setArrivalDetails({...arrivalDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-blue-200 rounded-lg text-sm bg-white" /></div>
                                 </div>
                             </div>
                             <div className="bg-red-50 p-4 rounded-xl border border-red-100">
                                 <h4 className="font-bold text-red-800 mb-3 flex items-center gap-2"><Plane size={18}/> 回程</h4>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-xs font-bold text-red-600 mb-1">時間</label><input type="time" value={departureDetails.time || ""} onChange={(e) => setDepartureDetails({...departureDetails, time: e.target.value})} className="w-full p-2 border border-red-200 rounded-lg text-sm" /></div>
-                                    <div><label className="block text-xs font-bold text-red-600 mb-1">地點</label><input type="text" value={departureDetails.location || ""} onChange={(e) => setDepartureDetails({...departureDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-red-200 rounded-lg text-sm" /></div>
+                                    <div><label className="block text-xs font-bold text-red-600 mb-1">時間</label><input type="time" value={departureDetails.time || ""} onChange={(e) => setDepartureDetails({...departureDetails, time: e.target.value})} className="w-full p-2 border border-red-200 rounded-lg text-sm bg-white" /></div>
+                                    <div><label className="block text-xs font-bold text-red-600 mb-1">地點</label><input type="text" value={departureDetails.location || ""} onChange={(e) => setDepartureDetails({...departureDetails, location: e.target.value})} placeholder="機場..." className="w-full p-2 border border-red-200 rounded-lg text-sm bg-white" /></div>
                                 </div>
                             </div>
                         </div>
-                        <button onClick={handleSave} className="w-full mt-6 py-3.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"><Save size={20} /> 儲存設定</button>
+                        <button onClick={handleSave} className="w-full mt-6 py-3.5 btn-sakura text-white font-bold rounded-xl shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 relative z-10"><Save size={20} /> 儲存設定</button>
                     </div>
                 </div>
             );
@@ -395,7 +432,7 @@
                 <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in fade-in zoom-in">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><Settings size={20}/> 設定</h3>
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2 japanese-font"><Settings size={20}/> 設定</h3>
                             <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
                         </div>
                         <div className="space-y-4">
@@ -408,14 +445,14 @@
                                     value={apiKeyInput} 
                                     onChange={(e) => setApiKeyInput(e.target.value)} 
                                     placeholder="貼上您的 API Key..." 
-                                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-sm"
                                 />
                                 <p className="text-xs text-stone-500 mt-2">
                                     需要此 Key 才能使用 AI 規劃功能。<br/>
-                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-indigo-600 underline">在此免費申請 Google AI Key</a>
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-rose-600 underline">在此免費申請 Google AI Key</a>
                                 </p>
                             </div>
-                            <button onClick={handleSave} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all">儲存設定</button>
+                            <button onClick={handleSave} className="w-full py-3 btn-sakura text-white font-bold rounded-xl shadow-lg hover:opacity-90 transition-all">儲存設定</button>
                         </div>
                     </div>
                 </div>
@@ -449,25 +486,25 @@
                 <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto">
                     <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl h-[85vh] md:h-auto flex flex-col animate-in slide-in-from-bottom duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2"><ListPlus size={24}/> 智能匯入</h3>
+                            <h3 className="text-xl font-bold text-stone-800 flex items-center gap-2 japanese-font"><ListPlus size={24}/> 智能匯入</h3>
                             <button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             {currentStep === 1 ? (
                                 <div className="space-y-4">
-                                    <textarea placeholder="貼上地點清單，AI 幫您排路線..." value={importText} onChange={(e) => setImportText(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl h-64 resize-none focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-                                    <button onClick={handleAIParseMapList} disabled={!importText || isLoading} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <Loader2 className="animate-spin" /> : "開始規劃 ✨"}</button>
+                                    <textarea placeholder="貼上地點清單，AI 幫您排路線..." value={importText} onChange={(e) => setImportText(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl h-64 resize-none focus:ring-2 focus:ring-rose-500 outline-none"></textarea>
+                                    <button onClick={handleAIParseMapList} disabled={!importText || isLoading} className="w-full py-4 btn-sakura text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <Loader2 className="animate-spin" /> : "開始規劃 ✨"}</button>
                                 </div>
                             ) : (
                                 <div className="space-y-6">
                                     <div className="p-3 bg-green-50 text-green-700 rounded-xl text-sm flex items-center gap-2 border border-green-100"><Check size={16}/> 規劃完成</div>
                                     {parsedDays.map((day, idx) => (
                                         <div key={idx} className="border border-stone-200 rounded-xl p-4">
-                                            <h4 className="font-bold text-stone-800 mb-2">{day.dateTitle}</h4>
-                                            <div className="space-y-2">{day.activities.map((a,i)=><div key={i} className="text-sm flex gap-2"><span className="text-indigo-600 font-mono w-12">{a.time}</span><span className="truncate">{a.title}</span></div>)}</div>
+                                            <h4 className="font-bold text-stone-800 mb-2 japanese-font">{day.dateTitle}</h4>
+                                            <div className="space-y-2">{day.activities.map((a,i)=><div key={i} className="text-sm flex gap-2"><span className="text-rose-600 font-mono w-12">{a.time}</span><span className="truncate">{a.title}</span></div>)}</div>
                                         </div>
                                     ))}
-                                    <button onClick={() => { onImport(parsedDays, importTitle); onClose(); }} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700">確認使用此行程</button>
+                                    <button onClick={() => { onImport(parsedDays, importTitle); onClose(); }} className="w-full py-4 btn-sakura text-white font-bold rounded-xl shadow-lg hover:opacity-90">確認使用此行程</button>
                                 </div>
                             )}
                         </div>
@@ -481,13 +518,13 @@
             return (
                 <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all mb-3 group relative">
                     <div className="flex justify-between items-start">
-                        <div><h4 className="font-bold text-stone-800 text-sm">{suggestion.title}</h4><p className="text-xs text-stone-500 flex items-center gap-1 mt-1"><MapPin size={10} /> {suggestion.location}</p></div>
+                        <div><h4 className="font-bold text-stone-800 text-sm japanese-font">{suggestion.title}</h4><p className="text-xs text-stone-500 flex items-center gap-1 mt-1"><MapPin size={10} /> {suggestion.location}</p></div>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeConfig.color.replace('bg-', 'bg-opacity-10 ')}`}>{typeConfig.label}</span>
                     </div>
                     <p className="text-xs text-stone-600 mt-2 line-clamp-2">{suggestion.note}</p>
                     <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">建議時間: {suggestion.time}</span>
-                        <button onClick={() => onAdd(suggestion)} className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"><Plus size={14} /> 加入</button>
+                        <span className="text-xs font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded">建議時間: {suggestion.time}</span>
+                        <button onClick={() => onAdd(suggestion)} className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"><Plus size={14} /> 加入</button>
                     </div>
                 </div>
             );
@@ -662,36 +699,39 @@
 
           if (!currentTrip) {
               return (
-                  <div className="min-h-screen bg-stone-50 p-6 pb-24 overflow-auto">
+                  <div className="min-h-screen p-6 pb-24 overflow-auto relative">
+                      {/* 裝飾背景 */}
+                      <div className="absolute top-0 right-0 opacity-10 pointer-events-none -z-10"><Flower2 size={200} className="text-rose-300"/></div>
+                      
                       <header className="mb-8 pt-4 flex justify-between items-center">
                           <div>
-                              <h1 className="text-3xl font-bold text-stone-800 tracking-tight">TravelFlow</h1>
+                              <h1 className="text-3xl font-bold text-stone-800 tracking-tight japanese-font flex items-center gap-2">TravelFlow <Flower2 size={24} className="text-rose-400"/></h1>
                               <p className="text-stone-500">規劃你的下一段旅程</p>
                           </div>
-                          <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><Settings size={24}/></button>
+                          <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-stone-400 hover:bg-white rounded-full"><Settings size={24}/></button>
                       </header>
                       <div className="grid gap-4">
                           {trips.map(trip => (
-                              <div key={trip.id} onClick={() => { setCurrentTripId(trip.id); setActiveTab('itinerary'); }} className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 flex justify-between items-center cursor-pointer hover:shadow-md transition-all">
+                              <div key={trip.id} onClick={() => { setCurrentTripId(trip.id); setActiveTab('itinerary'); }} className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-stone-200 flex justify-between items-center cursor-pointer hover:shadow-md transition-all">
                                   <div>
-                                      <h3 className="font-bold text-stone-800 text-lg mb-1">{trip.title}</h3>
-                                      <p className="text-sm text-stone-400 flex items-center gap-2"><Calendar size={14}/> {trip.startDate} · {trip.days.length} 天</p>
+                                      <h3 className="font-bold text-stone-800 text-lg mb-1 japanese-font">{trip.title}</h3>
+                                      <p className="text-sm text-stone-500 flex items-center gap-2"><Calendar size={14} className="text-rose-400"/> {trip.startDate} · {trip.days.length} 天</p>
                                   </div>
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} className="p-2 text-stone-300 hover:text-red-400"><Trash2 size={18}/></button>
                               </div>
                           ))}
-                          <button onClick={() => setIsCreateOpen(true)} className="mt-4 w-full py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-indigo-400 hover:text-indigo-500 transition-colors flex items-center justify-center gap-2"><Plus/> 建立新旅程</button>
+                          <button onClick={() => setIsCreateOpen(true)} className="mt-4 w-full py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-rose-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-2"><Plus/> 建立新旅程</button>
                       </div>
                       
                       {isCreateOpen && (
                           <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                               <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in">
-                                  <h3 className="text-xl font-bold mb-4 text-stone-800">新旅程</h3>
-                                  <input type="text" placeholder="名稱 (如: 沖繩之旅)" value={newTripData.title} onChange={e=>setNewTripData({...newTripData, title:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" autoFocus />
-                                  <input type="date" value={newTripData.date} onChange={e=>setNewTripData({...newTripData, date:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" />
+                                  <h3 className="text-xl font-bold mb-4 text-stone-800 japanese-font">新旅程</h3>
+                                  <input type="text" placeholder="名稱 (如: 京都賞楓之旅)" value={newTripData.title} onChange={e=>setNewTripData({...newTripData, title:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" autoFocus />
+                                  <input type="date" value={newTripData.date} onChange={e=>setNewTripData({...newTripData, date:e.target.value})} className="w-full mb-3 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" />
                                   <div className="flex justify-end gap-2 mt-4">
                                       <button onClick={()=>setIsCreateOpen(false)} className="px-4 py-2 text-stone-500">取消</button>
-                                      <button onClick={handleCreateTrip} disabled={!newTripData.title} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">建立</button>
+                                      <button onClick={handleCreateTrip} disabled={!newTripData.title} className="px-6 py-2 btn-sakura text-white rounded-xl font-bold hover:opacity-90">建立</button>
                                   </div>
                               </div>
                           </div>
@@ -703,16 +743,16 @@
           }
 
           return (
-              <div className="min-h-screen bg-stone-50 flex flex-col font-sans text-stone-800 overflow-hidden">
-                  <header className="bg-white px-4 py-3 border-b border-stone-100 flex justify-between items-center sticky top-0 z-30 shadow-sm flex-none">
+              <div className="min-h-screen flex flex-col font-sans text-stone-800 overflow-hidden">
+                  <header className="bg-white/90 backdrop-blur-sm px-4 py-3 border-b border-stone-200 flex justify-between items-center sticky top-0 z-30 shadow-sm flex-none">
                       <div className="flex items-center gap-3 overflow-hidden">
                           <button onClick={() => setCurrentTripId(null)} className="p-2 hover:bg-stone-50 rounded-full text-stone-500"><ChevronLeft/></button>
-                          <h1 className="font-bold text-lg truncate">{currentTrip.title}</h1>
+                          <h1 className="font-bold text-lg truncate japanese-font">{currentTrip.title}</h1>
                       </div>
                       <div className="flex gap-2">
                           <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-stone-400 hover:bg-stone-50 rounded-full"><Settings size={20}/></button>
                           <button onClick={() => setShowRecommendations(!showRecommendations)} className={`p-2 rounded-full transition-colors ${showRecommendations ? 'bg-yellow-100 text-yellow-600' : 'text-stone-400 hover:bg-stone-50'}`}><Lightbulb size={20}/></button>
-                          <button onClick={() => setIsFlightModalOpen(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full"><Plane size={20}/></button>
+                          <button onClick={() => setIsFlightModalOpen(true)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-full"><Plane size={20}/></button>
                           <button onClick={() => setIsImportModalOpen(true)} className="p-2 text-stone-600 hover:bg-stone-100 rounded-full"><ListPlus size={20}/></button>
                           <button onClick={handleCopyItinerary} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><Copy size={20}/></button>
                       </div>
@@ -721,24 +761,24 @@
                   <div className="flex-1 relative flex overflow-auto">
                       {activeTab === 'itinerary' ? (
                           <div className="flex-1 flex flex-col h-full min-w-[320px]">
-                              <div className="flex overflow-x-auto p-2 gap-2 bg-white border-b border-stone-100 no-scrollbar z-20 shadow-sm flex-none sticky top-0">
+                              <div className="flex overflow-x-auto p-2 gap-2 bg-white/50 backdrop-blur-sm border-b border-stone-200 no-scrollbar z-20 shadow-sm flex-none sticky top-0">
                                   {currentTrip.days.map((day, idx) => (
-                                      <button key={day.id} onClick={() => setCurrentDayIndex(idx)} className={`flex-none px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${currentDayIndex === idx ? 'bg-indigo-600 text-white shadow-md' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                                      <button key={day.id} onClick={() => setCurrentDayIndex(idx)} className={`flex-none px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${currentDayIndex === idx ? 'btn-sakura text-white shadow-md' : 'bg-white text-stone-500 border border-stone-200'}`}>
                                           {day.date}
                                       </button>
                                   ))}
-                                  <button onClick={() => { const newDays = [...currentTrip.days, {id: generateId(), date: `Day ${currentTrip.days.length+1}`, activities:[]}]; handleUpdateTrip(currentTrip.id, {days: newDays}); setCurrentDayIndex(newDays.length-1); }} className="px-3 py-2 bg-stone-100 text-stone-400 rounded-full hover:bg-stone-200"><Plus size={16}/></button>
+                                  <button onClick={() => { const newDays = [...currentTrip.days, {id: generateId(), date: `Day ${currentTrip.days.length+1}`, activities:[]}]; handleUpdateTrip(currentTrip.id, {days: newDays}); setCurrentDayIndex(newDays.length-1); }} className="px-3 py-2 bg-white border border-stone-200 text-stone-400 rounded-full hover:bg-stone-50"><Plus size={16}/></button>
                               </div>
 
                               <div className="flex-1 overflow-y-auto p-4 pb-24 custom-scrollbar relative">
-                                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 mb-6 flex flex-col gap-3">
+                                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-stone-200 mb-6 flex flex-col gap-3">
                                       <div className="flex justify-between items-start">
-                                          <h2 className="text-2xl font-bold text-stone-800">Day {currentDayIndex + 1}</h2>
-                                          <button onClick={toggleWeather} className="bg-stone-50 px-2 py-1 rounded-lg border border-stone-100 hover:bg-stone-100"><WeatherIcon type={currentDay.weather} /></button>
+                                          <h2 className="text-2xl font-bold text-stone-800 japanese-font">Day {currentDayIndex + 1}</h2>
+                                          <button onClick={toggleWeather} className="bg-white px-2 py-1 rounded-lg border border-stone-200 hover:bg-stone-50"><WeatherIcon type={currentDay.weather} /></button>
                                       </div>
-                                      <div className="flex items-center gap-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                                          <Bed size={18} className="text-indigo-500 flex-shrink-0" />
-                                          <input type="text" placeholder="輸入今晚住宿..." value={currentDay.hotel || ""} onChange={(e) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].hotel = e.target.value; handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} className="bg-transparent w-full text-stone-700 font-medium placeholder-indigo-300 outline-none"/>
+                                      <div className="flex items-center gap-2 bg-[#fdfcf6] p-3 rounded-xl border border-stone-200">
+                                          <Bed size={18} className="text-emerald-600 flex-shrink-0" />
+                                          <input type="text" placeholder="輸入今晚住宿..." value={currentDay.hotel || ""} onChange={(e) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].hotel = e.target.value; handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} className="bg-transparent w-full text-stone-700 font-medium placeholder-stone-400 outline-none"/>
                                       </div>
                                   </div>
 
@@ -760,17 +800,17 @@
                       )}
 
                       {showRecommendations && activeTab === 'itinerary' && (
-                          <div className="absolute inset-y-0 right-0 w-full md:w-80 bg-white shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300 border-l border-stone-200">
-                              <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-yellow-50">
-                                  <h3 className="font-bold text-yellow-800 flex items-center gap-2"><Lightbulb size={18}/> AI 靈感推薦</h3>
-                                  <button onClick={() => setShowRecommendations(false)} className="p-1 hover:bg-yellow-100 rounded-full"><X size={18}/></button>
+                          <div className="absolute inset-y-0 right-0 w-full md:w-80 bg-white/95 backdrop-blur-md shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300 border-l border-stone-200">
+                              <div className="p-4 border-b border-stone-200 flex justify-between items-center bg-amber-50/50">
+                                  <h3 className="font-bold text-amber-800 flex items-center gap-2 japanese-font"><Lightbulb size={18}/> AI 靈感推薦</h3>
+                                  <button onClick={() => setShowRecommendations(false)} className="p-1 hover:bg-amber-100 rounded-full"><X size={18}/></button>
                               </div>
-                              <div className="p-4 border-b border-stone-100">
-                                  <button onClick={handleGetRecommendations} disabled={loadingRecs} className="w-full py-3 bg-white border-2 border-yellow-400 text-yellow-700 font-bold rounded-xl shadow-sm hover:bg-yellow-50 flex items-center justify-center gap-2">
+                              <div className="p-4 border-b border-stone-200">
+                                  <button onClick={handleGetRecommendations} disabled={loadingRecs} className="w-full py-3 bg-white border border-amber-200 text-amber-700 font-bold rounded-xl shadow-sm hover:bg-amber-50 flex items-center justify-center gap-2 transition-all">
                                       {loadingRecs ? <Loader2 className="animate-spin"/> : <Sparkles/>} 分析行程並推薦
                                   </button>
                               </div>
-                              <div className="flex-1 overflow-y-auto p-4 bg-stone-50 space-y-3">
+                              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                   {(recommendations[currentDayIndex] || []).map((rec, i) => (
                                       <RecommendationCard key={i} suggestion={rec} onAdd={handleAddRecommendation} />
                                   ))}
@@ -780,19 +820,19 @@
                       )}
                   </div>
 
-                  <nav className="bg-white border-t border-stone-200 px-6 py-3 flex justify-around items-center z-30 pb-safe flex-none">
-                      <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1 ${activeTab === 'itinerary' ? 'text-indigo-600' : 'text-stone-400'}`}>
+                  <nav className="bg-white/90 backdrop-blur-md border-t border-stone-200 px-6 py-3 flex justify-around items-center z-30 pb-safe flex-none">
+                      <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1 ${activeTab === 'itinerary' ? 'text-rose-600' : 'text-stone-400'}`}>
                           <Map size={24} strokeWidth={activeTab === 'itinerary' ? 2.5 : 2} />
                           <span className="text-[10px] font-bold">行程</span>
                       </button>
                       
                       {activeTab === 'itinerary' && (
-                          <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg shadow-indigo-200 -mt-8 border-4 border-stone-50 hover:scale-105 transition-transform">
+                          <button onClick={() => setIsModalOpen(true)} className="btn-sakura text-white p-4 rounded-full shadow-lg shadow-rose-200 -mt-8 border-4 border-[#fffbf0] hover:scale-105 transition-transform">
                               <Plus size={24} />
                           </button>
                       )}
 
-                      <button onClick={() => setActiveTab('tools')} className={`flex flex-col items-center gap-1 ${activeTab === 'tools' ? 'text-indigo-600' : 'text-stone-400'}`}>
+                      <button onClick={() => setActiveTab('tools')} className={`flex flex-col items-center gap-1 ${activeTab === 'tools' ? 'text-rose-600' : 'text-stone-400'}`}>
                           <LayoutGrid size={24} strokeWidth={activeTab === 'tools' ? 2.5 : 2} />
                           <span className="text-[10px] font-bold">工具</span>
                       </button>
@@ -801,17 +841,17 @@
                   {isModalOpen && (
                       <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end justify-center z-50" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
                           <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-safe animate-in slide-in-from-bottom duration-200 overflow-y-auto max-h-[90vh]">
-                              <h3 className="text-xl font-bold mb-4 text-stone-800">新增行程</h3>
+                              <h3 className="text-xl font-bold mb-4 text-stone-800 japanese-font">新增行程</h3>
                               <div className="space-y-3">
                                   <div className="flex gap-3">
-                                      <input type="time" value={newActivity.time} onChange={e=>setNewActivity({...newActivity, time:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none w-1/3 font-mono text-center font-bold text-lg outline-none focus:ring-2 focus:ring-indigo-500" />
-                                      <select value={newActivity.type} onChange={e=>setNewActivity({...newActivity, type:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none flex-1 font-bold text-stone-600 outline-none focus:ring-2 focus:ring-indigo-500">
+                                      <input type="time" value={newActivity.time} onChange={e=>setNewActivity({...newActivity, time:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none w-1/3 font-mono text-center font-bold text-lg outline-none focus:ring-2 focus:ring-rose-500" />
+                                      <select value={newActivity.type} onChange={e=>setNewActivity({...newActivity, type:e.target.value})} className="bg-stone-50 p-3 rounded-xl border-none flex-1 font-bold text-stone-600 outline-none focus:ring-2 focus:ring-rose-500">
                                           {Object.entries(ACTIVITY_TYPES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                                       </select>
                                   </div>
-                                  <input type="text" placeholder="標題" value={newActivity.title} onChange={e=>setNewActivity({...newActivity, title:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-bold text-lg outline-none placeholder-stone-300 focus:ring-2 focus:ring-indigo-500" autoFocus />
-                                  <input type="text" placeholder="地點 (導航用)" value={newActivity.location} onChange={e=>setNewActivity({...newActivity, location:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl text-stone-600 outline-none placeholder-stone-300 focus:ring-2 focus:ring-indigo-500" />
-                                  <button onClick={handleAddActivity} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 mt-2 hover:bg-indigo-700">加入</button>
+                                  <input type="text" placeholder="標題" value={newActivity.title} onChange={e=>setNewActivity({...newActivity, title:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-bold text-lg outline-none placeholder-stone-300 focus:ring-2 focus:ring-rose-500" autoFocus />
+                                  <input type="text" placeholder="地點 (導航用)" value={newActivity.location} onChange={e=>setNewActivity({...newActivity, location:e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl text-stone-600 outline-none placeholder-stone-300 focus:ring-2 focus:ring-rose-500" />
+                                  <button onClick={handleAddActivity} className="w-full py-4 btn-sakura text-white rounded-xl font-bold text-lg shadow-lg hover:opacity-90">加入</button>
                               </div>
                           </div>
                       </div>
