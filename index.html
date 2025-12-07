@@ -1071,7 +1071,7 @@
                           <div className="flex flex-col overflow-hidden">
                               <div className="flex items-baseline gap-2">
                                   <h1 className="font-bold text-lg truncate japanese-font">{currentTrip.title}</h1>
-                                  <span className="text-sm font-medium text-stone-500">{calculateDate(currentTrip.startDate, currentDayIndex)}</span>
+                                  <span className="text-sm font-medium text-stone-500 flex-shrink-0">{calculateDate(currentTrip.startDate, currentDayIndex)}</span>
                               </div>
                               {currentTrip.days[currentDayIndex].hotel && (
                                   <div className="flex items-center gap-1"><WeatherWidget location={currentTrip.arrival.location || "Okinawa"} /></div>
