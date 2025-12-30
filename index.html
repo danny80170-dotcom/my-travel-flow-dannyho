@@ -50,12 +50,12 @@
 </head>
 <body>
     <div id="root"></div>
-    <div id="error-display" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:white;z-index:9999;padding:20px;color:red;"></div>
+    <div id="error-display" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:white;z-index:9999;padding:20px;color:red;overflow:auto;"></div>
 
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             document.getElementById('error-display').style.display = 'block';
-            document.getElementById('error-display').innerHTML = `<h3>⚠️ Error</h3><p>${message}</p>`;
+            document.getElementById('error-display').innerHTML = `<h3>⚠️ 應用程式錯誤</h3><p>${message}</p><p>Line: ${lineno}</p>`;
         };
     </script>
 
@@ -68,7 +68,8 @@
             Lightbulb, CloudSun, Phone, Wallet, Car, Navigation, LayoutGrid, Settings, Key,
             UserCheck, UtensilsCrossed, CloudRain, Image as ImageIcon, Move, Droplets, Cloud, 
             CloudLightning, Wind, MessageCircle, Send, Bot, RefreshCw, ArrowLeft, ArrowRight,
-            HelpCircle, Link, Upload, ImagePlus, Pencil, Building, ExternalLink, Hourglass, Info
+            HelpCircle, Link, Upload, ImagePlus, Pencil, Building, ExternalLink, Hourglass, Info,
+            Coins, ArrowRightLeft, Ticket, Download, FileJson, ArrowDown
         } from 'https://esm.sh/lucide-react@latest?deps=react@18.2.0';
 
         const apiKey = ""; 
@@ -76,12 +77,12 @@
 
         const DEFAULT_TRIPS = [
           {
-            id: 1715432000000, title: "🇯🇵 沖繩自駕漫遊", startDate: "2025-06-15",
-            arrival: { time: "10:00", location: "那霸機場 OKA" }, departure: { time: "17:00", location: "那霸機場 OKA" },
+            id: 1715432000000, title: "🇯🇵 沖繩五日自駕遊", startDate: "2025-06-15",
+            arrival: { time: "10:00", location: "那霸機場" }, departure: { time: "17:00", location: "那霸機場" },
             transport: { type: "car", pickupTime: "11:30" },
             expenses: [], emergencyContacts: [],
             days: [
-              { id: 1715432000001, date: "Day 1", hotel: "Vessel Hotel Campana", weather: "sunny", activities: [ { id: 101, time: "11:30", type: "transport", title: "取車", location: "OTS 臨空豐崎營業所", note: "檢查車況", duration: "1小時" }, { id: 102, time: "13:00", type: "food", title: "幸福鬆餅", location: "幸福鬆餅 瀨長島店", note: "需預約", duration: "1.5小時" } ] }
+              { id: 1715432000001, date: "Day 1", hotel: "Vessel Hotel Campana", weather: "sunny", activities: [ { id: 101, time: "11:30", type: "transport", title: "取車", location: "OTS 臨空豐崎營業所", note: "檢查車況", duration: "1小時", travelTime: "🚗 20分" }, { id: 102, time: "13:00", type: "food", title: "幸福鬆餅", location: "幸福鬆餅 瀨長島店", note: "需預約，看海景", duration: "1.5小時", travelTime: "🚗 40分" }, { id: 103, time: "15:30", type: "accommodation", title: "飯店 Check-in", location: "Vessel Hotel Campana", note: "辦理入住，休息一下", duration: "1小時" } ] }
             ]
           }
         ];
@@ -171,167 +172,427 @@
             </div>
         );
 
-        // --- Trip Info View (NEW) ---
-        function TripInfoView({ trip, onUpdate }) {
-            const [newExpense, setNewExpense] = useState({ title: "", amount: "", currency: "JPY" });
-            const [newContact, setNewContact] = useState({ name: "", phone: "" });
-            
-            const totalExpense = (trip.expenses || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-            
-            const addExpense = () => {
-                if (!newExpense.title || !newExpense.amount) return;
-                const updatedExpenses = [...(trip.expenses || []), { ...newExpense, id: generateId(), amount: Number(newExpense.amount) }];
-                onUpdate(trip.id, { expenses: updatedExpenses });
-                setNewExpense({ title: "", amount: "", currency: "JPY" });
-            };
-            
-            const deleteExpense = (id) => onUpdate(trip.id, { expenses: trip.expenses.filter(e => e.id !== id) });
-            
-            const addContact = () => {
-                if (!newContact.name || !newContact.phone) return;
-                const updatedContacts = [...(trip.emergencyContacts || []), { ...newContact, id: generateId() }];
-                onUpdate(trip.id, { emergencyContacts: updatedContacts });
-                setNewContact({ name: "", phone: "" });
-            };
-            
-            const deleteContact = (id) => onUpdate(trip.id, { emergencyContacts: trip.emergencyContacts.filter(c => c.id !== id) });
-
+        // --- Helper Components ---
+        function CurrencyConverter() {
+            const [amount, setAmount] = useState(1000);
+            const [rate, setRate] = useState(0.215); 
             return (
-                <div className="p-4 space-y-4 pb-24 overflow-y-auto h-full">
-                    {/* Flight & Transport */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Plane size={20} className="text-blue-500"/> 航班 & 交通</h3>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                <span className="text-xs text-blue-400 font-bold block mb-1">抵達</span>
-                                <div className="text-lg font-bold text-stone-800">{trip.arrival?.time || "--:--"}</div>
-                                <div className="text-xs text-stone-500 truncate">{trip.arrival?.location || "未設定"}</div>
-                            </div>
-                            <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
-                                <span className="text-xs text-orange-400 font-bold block mb-1">離開</span>
-                                <div className="text-lg font-bold text-stone-800">{trip.departure?.time || "--:--"}</div>
-                                <div className="text-xs text-stone-500 truncate">{trip.departure?.location || "未設定"}</div>
-                            </div>
-                        </div>
-                        {trip.transport?.type === 'car' ? (
-                            <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center gap-3">
-                                <div className="p-2 bg-white rounded-full border border-stone-100"><Car size={18} className="text-stone-600"/></div>
-                                <div>
-                                    <span className="text-xs font-bold text-stone-400 block">租車自駕</span>
-                                    <span className="text-sm font-bold text-stone-800">取車: {trip.transport.pickupTime || "--:--"}</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center gap-3">
-                                <div className="p-2 bg-white rounded-full border border-stone-100"><Bus size={18} className="text-stone-600"/></div>
-                                <span className="text-sm font-bold text-stone-600">搭乘大眾運輸</span>
-                            </div>
-                        )}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200">
+                    <h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Coins size={20} className="text-yellow-500"/> 簡易匯率換算</h3>
+                    <div className="flex items-center gap-3 mb-4 bg-stone-50 p-3 rounded-xl border border-stone-100">
+                        <div className="flex-1"><label className="text-xs text-stone-400 font-bold block mb-1">外幣 (JPY)</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent text-xl font-mono font-bold outline-none text-stone-800" /></div>
+                        <ArrowRightLeft size={16} className="text-stone-300" />
+                        <div className="flex-1 text-right"><label className="text-xs text-stone-400 font-bold block mb-1">台幣 (TWD)</label><div className="text-xl font-mono font-bold text-stone-800">{Math.round(amount * rate).toLocaleString()}</div></div>
                     </div>
-
-                    {/* Hotel List */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Bed size={20} className="text-emerald-500"/> 住宿清單</h3>
-                        <div className="space-y-3">
-                            {trip.days.slice(0, trip.days.length - 1).map((day, idx) => (
-                                <div key={day.id} className="flex items-center gap-3 border-b border-stone-50 last:border-0 pb-2 last:pb-0">
-                                    <span className="text-xs font-mono font-bold text-stone-400 w-12">Day {idx+1}</span>
-                                    <div className="flex-1">
-                                        <div className="text-sm font-bold text-stone-800">{day.hotel || "未設定住宿"}</div>
-                                        <div className="text-xs text-stone-400">{calculateDate(trip.startDate, idx)}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Expenses */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200">
-                        <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-stone-800 flex items-center gap-2"><Wallet size={20} className="text-rose-500"/> 預算記帳</h3><span className="text-xs bg-rose-50 text-rose-600 px-2 py-1 rounded-full font-bold">¥{totalExpense.toLocaleString()}</span></div>
-                        <div className="flex gap-2 mb-3"><input type="text" placeholder="項目" value={newExpense.title} onChange={e=>setNewExpense({...newExpense, title:e.target.value})} className="flex-1 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><input type="number" placeholder="金額" value={newExpense.amount} onChange={e=>setNewExpense({...newExpense, amount:e.target.value})} className="w-20 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><button onClick={addExpense} className="p-2 bg-stone-100 rounded-lg text-stone-500 hover:bg-stone-200"><Plus size={16}/></button></div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">{trip.expenses?.map(exp => (<div key={exp.id} className="flex justify-between items-center text-sm p-2 hover:bg-stone-50 rounded-lg"><span>{exp.title}</span><div className="flex items-center gap-2"><span className="font-mono font-bold">¥{exp.amount}</span><button onClick={()=>deleteExpense(exp.id)} className="text-stone-300 hover:text-red-400"><X size={14}/></button></div></div>))}</div>
-                    </div>
-
-                    {/* Emergency Contacts */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200">
-                        <h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Phone size={20} className="text-orange-500"/> 緊急聯絡</h3>
-                        <div className="flex gap-2 mb-3"><input type="text" placeholder="名稱" value={newContact.name} onChange={e=>setNewContact({...newContact, name:e.target.value})} className="flex-1 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><input type="tel" placeholder="電話" value={newContact.phone} onChange={e=>setNewContact({...newContact, phone:e.target.value})} className="flex-1 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><button onClick={addContact} className="p-2 bg-stone-100 rounded-lg text-stone-500 hover:bg-stone-200"><Plus size={16}/></button></div>
-                        <div className="space-y-2">{trip.emergencyContacts?.map(c => (<div key={c.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100"><div><div className="text-xs text-red-400 font-bold">{c.name}</div><div className="text-red-800 font-mono font-bold select-all">{c.phone}</div></div><button onClick={()=>deleteContact(c.id)} className="text-red-300 hover:text-red-600"><X size={16}/></button></div>))}</div>
-                    </div>
+                    <div className="flex justify-between items-center text-xs text-stone-400"><span>目前匯率設定: 1 JPY = </span><input type="number" value={rate} onChange={e => setRate(e.target.value)} step="0.001" className="w-16 bg-stone-100 rounded px-1 py-0.5 text-center text-stone-600 outline-none" /><span>TWD</span></div>
                 </div>
             );
         }
 
-        // --- Other Components (DashboardWeather, DraggableMapWindow, ActivityGuide, ActivityItem) ---
-        function DashboardWeather({ locationName }) {
+        function TripInfoView({ trip, onUpdate }) {
+            const [newExpense, setNewExpense] = useState({ title: "", amount: "", currency: "JPY" });
+            const [newContact, setNewContact] = useState({ name: "", phone: "" });
+            const totalExpense = (trip.expenses || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+            
+            const handleExport = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trip));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", `${trip.title || "trip"}_export.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            const addExpense = () => { if (!newExpense.title || !newExpense.amount) return; onUpdate(trip.id, { expenses: [...(trip.expenses || []), { ...newExpense, id: generateId(), amount: Number(newExpense.amount) }] }); setNewExpense({ title: "", amount: "", currency: "JPY" }); };
+            const deleteExpense = (id) => onUpdate(trip.id, { expenses: trip.expenses.filter(e => e.id !== id) });
+            const addContact = () => { if (!newContact.name || !newContact.phone) return; onUpdate(trip.id, { emergencyContacts: [...(trip.emergencyContacts || []), { ...newContact, id: generateId() }] }); setNewContact({ name: "", phone: "" }); };
+            const deleteContact = (id) => onUpdate(trip.id, { emergencyContacts: trip.emergencyContacts.filter(c => c.id !== id) });
+            
+            return (
+                <div className="p-4 space-y-4 pb-24 overflow-y-auto h-full">
+                    <button onClick={handleExport} className="w-full py-3 bg-stone-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-stone-700"><Download size={18}/> 匯出行程檔案 (給家人)</button>
+                    <CurrencyConverter />
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200"><h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Plane size={20} className="text-blue-500"/> 航班 & 交通</h3><div className="grid grid-cols-2 gap-4 mb-4"><div className="bg-blue-50 p-3 rounded-xl border border-blue-100"><span className="text-xs text-blue-400 font-bold block mb-1">抵達</span><div className="text-lg font-bold text-stone-800">{trip.arrival?.time || "--:--"}</div><div className="text-xs text-stone-500 truncate">{trip.arrival?.location || "未設定"}</div></div><div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><span className="text-xs text-orange-400 font-bold block mb-1">離開</span><div className="text-lg font-bold text-stone-800">{trip.departure?.time || "--:--"}</div><div className="text-xs text-stone-500 truncate">{trip.departure?.location || "未設定"}</div></div></div>{trip.transport?.type === 'car' ? (<div className="bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center gap-3"><div className="p-2 bg-white rounded-full border border-stone-100"><Car size={18} className="text-stone-600"/></div><div><span className="text-xs font-bold text-stone-400 block">租車自駕</span><span className="text-sm font-bold text-stone-800">取車: {trip.transport.pickupTime || "--:--"}</span></div></div>) : (<div className="bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center gap-3"><div className="p-2 bg-white rounded-full border border-stone-100"><Bus size={18} className="text-stone-600"/></div><span className="text-sm font-bold text-stone-600">搭乘大眾運輸</span></div>)}</div>
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200"><h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Bed size={20} className="text-emerald-500"/> 住宿清單</h3><div className="space-y-3">{trip.days.slice(0, trip.days.length - 1).map((day, idx) => (<div key={day.id} className="flex items-center gap-3 border-b border-stone-50 last:border-0 pb-2 last:pb-0"><span className="text-xs font-mono font-bold text-stone-400 w-12">Day {idx+1}</span><div className="flex-1"><div className="text-sm font-bold text-stone-800">{day.hotel || "未設定住宿"}</div><div className="text-xs text-stone-400">{calculateDate(trip.startDate, idx)}</div></div></div>))}</div></div>
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-200"><h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Phone size={20} className="text-orange-500"/> 緊急聯絡</h3><div className="flex gap-2 mb-3"><input type="text" placeholder="名稱" value={newContact.name} onChange={e=>setNewContact({...newContact, name:e.target.value})} className="flex-1 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><input type="tel" placeholder="電話" value={newContact.phone} onChange={e=>setNewContact({...newContact, phone:e.target.value})} className="flex-1 p-2 bg-stone-50 rounded-lg text-xs outline-none" /><button onClick={addContact} className="p-2 bg-stone-100 rounded-lg text-stone-500 hover:bg-stone-200"><Plus size={16}/></button></div><div className="space-y-2">{trip.emergencyContacts?.map(c => (<div key={c.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100"><div><div className="text-xs text-red-400 font-bold">{c.name}</div><div className="text-red-800 font-mono font-bold select-all">{c.phone}</div></div><button onClick={()=>deleteContact(c.id)} className="text-red-300 hover:text-red-600"><X size={16}/></button></div>))}</div></div>
+                </div>
+            );
+        }
+
+        // --- Dashboard Weather ---
+        function DashboardWeather({ tripTitle, arrivalLocation, hotelLocation }) {
             const [weather, setWeather] = useState(null);
             const [city, setCity] = useState("Loading...");
+
             useEffect(() => {
                 const fetchWeather = async () => {
                     try {
-                        let query = locationName || "Taipei";
-                        query = query.replace(/[^\u4e00-\u9fa5a-zA-Z\s]/g, "").replace(/(之旅|自由行|自駕|漫遊|行程|五天四夜|六天五夜|Day|day)/g, "").trim().substring(0, 15);
-                        if (!query) query = "Taipei";
+                        let candidates = [arrivalLocation, hotelLocation, tripTitle];
+                        let query = "Taipei";
+                        for (let c of candidates) {
+                            if (c) {
+                                let clean = c.replace(/[^\u4e00-\u9fa5a-zA-Z\s]/g, "").replace(/(機場|空港|Airport|五日|六日|之旅|自由行|自駕|漫遊|行程|遊)/g, "").trim().substring(0, 15);
+                                if (clean.length >= 2) { query = clean; break; }
+                            }
+                        }
                         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=zh&format=json`);
                         const geoData = await geoRes.json();
                         if (geoData.results && geoData.results.length > 0) {
                             const { latitude, longitude, name } = geoData.results[0];
                             setCity(name);
                             const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,precipitation_probability_max&current_weather=true&timezone=auto`);
-                            setWeather(await weatherRes.json());
+                            const weatherData = await weatherRes.json();
+                            setWeather(weatherData);
                         } else { setCity("未知地點"); setWeather(null); }
                     } catch (e) { setCity("天氣載入失敗"); }
                 };
                 fetchWeather();
-            }, [locationName]);
-            if(!weather) return <div className="mx-4 mb-6 h-32 rounded-3xl bg-stone-200 animate-pulse flex items-center justify-center text-stone-400 text-sm">正在尋找 {locationName} 的天氣...</div>;
-            const getWeatherIcon = (code) => { if (code === 0) return <Sun className="text-orange-500" size={16} />; if (code <= 3) return <CloudSun className="text-yellow-500" size={16} />; if (code <= 67) return <CloudRain className="text-blue-500" size={16} />; return <Cloud className="text-gray-400" size={16} />; };
-            return <div className="mx-4 mb-6 rounded-3xl p-6 weather-card-gradient shadow-lg border border-white/40 relative z-10 flex justify-between items-center"><div><h2 className="text-3xl font-bold text-stone-800 japanese-font">{Math.round(weather.current_weather.temperature)}°</h2><p className="text-stone-500 text-sm font-bold flex items-center gap-1"><MapPin size={12}/> {city}</p></div><div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">{weather.daily.time.slice(0,5).map((t,i) => (<div key={t} className="flex flex-col items-center min-w-[40px]"><span className="text-[10px] text-stone-400 font-bold mb-1">{new Date(t).getDate()}日</span>{getWeatherIcon(weather.daily.weathercode[i])}<span className="text-xs text-stone-600 font-bold mt-1">{Math.round(weather.daily.temperature_2m_max[i])}°</span><span className="text-[10px] text-blue-500 font-bold">{weather.daily.precipitation_probability_max[i]}%</span></div>))}</div></div>;
+            }, [tripTitle, arrivalLocation, hotelLocation]);
+
+            if(!weather) return <div className="mx-4 mb-6 h-32 rounded-3xl bg-stone-200 animate-pulse flex items-center justify-center text-stone-400 text-sm">正在載入 {arrivalLocation || tripTitle} 天氣...</div>;
+            
+            const getWeatherIcon = (code) => {
+                if (code === 0) return <Sun className="text-orange-500" size={16} />;
+                if (code <= 3) return <CloudSun className="text-yellow-500" size={16} />;
+                if (code <= 67) return <CloudRain className="text-blue-500" size={16} />;
+                return <Cloud className="text-gray-400" size={16} />;
+            };
+
+            return (
+                <div className="mx-4 mb-6 rounded-3xl p-6 weather-card-gradient shadow-lg border border-white/40 relative z-10 flex justify-between items-center">
+                    <div><h2 className="text-3xl font-bold text-stone-800 japanese-font">{Math.round(weather.current_weather.temperature)}°</h2><p className="text-stone-500 text-sm font-bold flex items-center gap-1"><MapPin size={12}/> {city}</p></div>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">{weather.daily.time.slice(0,5).map((t,i) => (<div key={t} className="flex flex-col items-center min-w-[40px]"><span className="text-[10px] text-stone-400 font-bold mb-1">{new Date(t).getDate()}日</span>{getWeatherIcon(weather.daily.weathercode[i])}<span className="text-xs text-stone-600 font-bold mt-1">{Math.round(weather.daily.temperature_2m_max[i])}°</span><span className="text-[10px] text-blue-500 font-bold">{weather.daily.precipitation_probability_max[i]}%</span></div>))}</div>
+                </div>
+            );
         }
 
+        // --- DraggableMapWindow ---
         function DraggableMapWindow({ location, onClose }) {
             const [position, setPosition] = useState({ x: 20, y: 150 }); 
             const [isDragging, setIsDragging] = useState(false);
             const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
             const windowRef = useRef(null);
-            const handleStart = (clientX, clientY) => { if (windowRef.current) { setIsDragging(true); const rect = windowRef.current.getBoundingClientRect(); setDragOffset({ x: clientX - rect.left, y: clientY - rect.top }); } };
+            
+            const handleStart = (clientX, clientY) => {
+                if (windowRef.current) {
+                    setIsDragging(true);
+                    const rect = windowRef.current.getBoundingClientRect();
+                    setDragOffset({ x: clientX - rect.left, y: clientY - rect.top });
+                }
+            };
             const onMouseDown = (e) => handleStart(e.clientX, e.clientY);
             const onTouchStart = (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY);
-            useEffect(() => { const handleMove = (clientX, clientY) => { if (isDragging) { const newX = Math.max(0, Math.min(window.innerWidth - 300, clientX - dragOffset.x)); const newY = Math.max(0, Math.min(window.innerHeight - 300, clientY - dragOffset.y)); setPosition({ x: newX, y: newY }); } }; const onMouseMove = (e) => handleMove(e.clientX, e.clientY); const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY); const onEnd = () => setIsDragging(false); if (isDragging) { window.addEventListener('mousemove', onMouseMove); window.addEventListener('mouseup', onEnd); window.addEventListener('touchmove', onTouchMove, { passive: false }); window.addEventListener('touchend', onEnd); } return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onEnd); window.removeEventListener('touchmove', onTouchMove); window.removeEventListener('touchend', onEnd); }; }, [isDragging, dragOffset]);
-            return <div ref={windowRef} className="fixed z-50 w-80 bg-white rounded-2xl overflow-hidden border border-stone-200 map-window-shadow animate-in zoom-in-95 duration-200" style={{ left: position.x, top: position.y }}><div className="bg-stone-800 text-white px-3 py-2 flex justify-between items-center cursor-move touch-none" onMouseDown={onMouseDown} onTouchStart={onTouchStart}><div className="flex items-center gap-2 text-sm font-bold truncate"><Move size={14} className="opacity-50"/> <span className="truncate max-w-[200px]">{location}</span></div><button onClick={onClose} className="p-1 hover:bg-stone-600 rounded-full transition-colors"><X size={16} /></button></div><div className="h-64 bg-stone-100 relative"><iframe width="100%" height="100%" frameBorder="0" src={`https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`} style={{ border: 0 }} allowFullScreen></iframe>{isDragging && <div className="absolute inset-0 bg-transparent z-10"></div>}</div><div className="p-2 bg-stone-50 flex justify-between items-center text-xs text-stone-500"><span>長按標題列可拖曳</span><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location)}&travelmode=driving`} target="_blank" className="flex items-center gap-1 text-blue-600 font-bold px-2 py-1 hover:bg-blue-50 rounded"><Navigation size={12}/> 開啟導航</a></div></div>;
+
+            useEffect(() => {
+                const handleMove = (clientX, clientY) => {
+                    if (isDragging) {
+                        const newX = Math.max(0, Math.min(window.innerWidth - 300, clientX - dragOffset.x)); 
+                        const newY = Math.max(0, Math.min(window.innerHeight - 300, clientY - dragOffset.y)); 
+                        setPosition({ x: newX, y: newY });
+                    }
+                };
+                const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+                const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                const onEnd = () => setIsDragging(false);
+
+                if (isDragging) {
+                    window.addEventListener('mousemove', onMouseMove);
+                    window.addEventListener('mouseup', onEnd);
+                    window.addEventListener('touchmove', onTouchMove, { passive: false });
+                    window.addEventListener('touchend', onEnd);
+                }
+                return () => {
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onEnd);
+                    window.removeEventListener('touchmove', onTouchMove);
+                    window.removeEventListener('touchend', onEnd);
+                };
+            }, [isDragging, dragOffset]);
+
+            return (
+                <div ref={windowRef} className="fixed z-50 w-80 bg-white rounded-2xl overflow-hidden border border-stone-200 map-window-shadow animate-in zoom-in-95 duration-200" style={{ left: position.x, top: position.y }}>
+                    <div className="bg-stone-800 text-white px-3 py-2 flex justify-between items-center cursor-move touch-none" onMouseDown={onMouseDown} onTouchStart={onTouchStart}>
+                        <div className="flex items-center gap-2 text-sm font-bold truncate"><Move size={14} className="opacity-50"/> <span className="truncate max-w-[200px]">{location}</span></div>
+                        <button onClick={onClose} className="p-1 hover:bg-stone-600 rounded-full transition-colors"><X size={16} /></button>
+                    </div>
+                    <div className="h-64 bg-stone-100 relative">
+                         <iframe width="100%" height="100%" frameBorder="0" src={`https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`} style={{ border: 0 }} allowFullScreen></iframe>
+                        {isDragging && <div className="absolute inset-0 bg-transparent z-10"></div>}
+                    </div>
+                    <div className="p-2 bg-stone-50 flex justify-between items-center text-xs text-stone-500">
+                        <span>長按標題列可拖曳</span>
+                        <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location)}&travelmode=driving`} target="_blank" className="flex items-center gap-1 text-blue-600 font-bold px-2 py-1 hover:bg-blue-50 rounded"><Navigation size={12}/> 開啟導航</a>
+                    </div>
+                </div>
+            );
         }
 
+        // --- ActivityGuide ---
         function ActivityGuide({ activity }) {
             const [info, setInfo] = useState(null);
             const [loading, setLoading] = useState(false);
             const [show, setShow] = useState(false);
             const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(activity.location + " " + activity.title + " scenery Japan travel")}`;
-            const fetchGuideInfo = async () => { if (info) { setShow(!show); return; } setLoading(true); setShow(true); const prompt = `介紹地點：「${activity.title} (${activity.location})」。請回傳嚴格的 JSON 格式 (不要有 markdown code block)：{ "intro": "約150字介紹，包含歷史或特色。", "highlight": "必看亮點或 Pro Tips", "food": "推薦美食或伴手禮" }`; try { const res = await callGemini(prompt, "application/json"); setInfo(res); } catch (e) { setInfo({ intro: "導遊暫時無法連線，請稍後再試。", highlight: "", food: "" }); } finally { setLoading(false); } };
-            return <div className="mt-3"><button onClick={fetchGuideInfo} className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-full transition-colors ${show ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-amber-50 hover:text-amber-600'}`}><UserCheck size={14} /> {show ? "收起導遊" : "導遊介紹"}</button>{show && (<div className="mt-3 bg-[#fffbf0] rounded-xl border border-amber-100 overflow-hidden guide-content"><div className="h-32 w-full bg-stone-200 relative overflow-hidden group"><img src={imageUrl} alt={activity.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} /><a href={`https://www.google.com/search?q=${encodeURIComponent(activity.title + " " + activity.location)}`} target="_blank" className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 hover:bg-black/80 backdrop-blur-sm"><ExternalLink size={10} /> 搜尋更多</a></div><div className="p-4">{loading ? (<div className="flex justify-center py-4 text-amber-400"><Loader2 className="animate-spin" /></div>) : info ? (<div className="space-y-3 text-sm text-stone-700"><div><h5 className="font-bold text-amber-800 flex items-center gap-1 mb-1"><MapPin size={12}/> 景點故事</h5><p className="text-stone-600 leading-relaxed text-justify">{info.intro}</p></div>{info.highlight && <div className="bg-white p-2 rounded-lg border border-amber-100"><span className="text-xs font-bold text-rose-500 block">✨ 專業建議 (Pro Tips)</span><span className="text-xs text-stone-600">{info.highlight}</span></div>}{info.food && <div className="bg-white p-2 rounded-lg border border-amber-100"><span className="text-xs font-bold text-orange-500 block">🍱 美食/伴手禮</span><span className="text-xs text-stone-600">{info.food}</span></div>}</div>) : <div className="text-center text-xs text-red-400">載入失敗</div>}</div></div>)}</div>;
+            const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(activity.title + " " + activity.location)}`;
+
+            const fetchGuideInfo = async () => {
+                if (info) { setShow(!show); return; }
+                setLoading(true); setShow(true);
+                const prompt = `介紹地點：「${activity.title} (${activity.location})」。請回傳嚴格的 JSON 格式：{ "intro": "約100字介紹。", "highlight": "必看亮點", "food": "推薦美食", "ticketInfo": "若為景點或展覽，請提供門票價格參考；若無則填寫『免費』或『無資訊』" }`;
+                try {
+                    const res = await callGemini(prompt, "application/json"); 
+                    setInfo(res);
+                } catch (e) { 
+                    setInfo({ intro: "導遊連線中斷。", highlight: "", food: "", ticketInfo: "" });
+                } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="mt-3">
+                    <button onClick={fetchGuideInfo} className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-full transition-colors ${show ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-amber-50 hover:text-amber-600'}`}>
+                        <UserCheck size={14} /> {show ? "收起導遊" : "導遊介紹"}
+                    </button>
+                    {show && (
+                        <div className="mt-3 bg-[#fffbf0] rounded-xl border border-amber-100 overflow-hidden guide-content">
+                            <div className="h-32 w-full bg-stone-200 relative overflow-hidden group">
+                                <img src={imageUrl} alt={activity.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
+                                <a href={googleSearchUrl} target="_blank" className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 hover:bg-black/80 backdrop-blur-sm"><ExternalLink size={10} /> 搜尋更多</a>
+                            </div>
+                            <div className="p-4">
+                                {loading ? (
+                                    <div className="flex justify-center py-4 text-amber-400"><Loader2 className="animate-spin" /></div>
+                                ) : info ? (
+                                    <div className="space-y-3 text-sm text-stone-700">
+                                        <div><h5 className="font-bold text-amber-800 flex items-center gap-1 mb-1"><MapPin size={12}/> 景點故事</h5><p className="text-stone-600 leading-relaxed text-justify">{info.intro}</p></div>
+                                        {info.highlight && <div className="bg-white p-2 rounded-lg border border-amber-100"><span className="text-xs font-bold text-rose-500 block">✨ 必看亮點</span><span className="text-xs text-stone-600">{info.highlight}</span></div>}
+                                        {info.ticketInfo && <div className="bg-white p-2 rounded-lg border border-amber-100"><span className="text-xs font-bold text-emerald-600 block flex items-center gap-1"><Ticket size={12}/> 門票資訊</span><span className="text-xs text-stone-600">{info.ticketInfo}</span></div>}
+                                        {info.food && <div className="bg-white p-2 rounded-lg border border-amber-100"><span className="text-xs font-bold text-orange-500 block">🍱 推薦美食</span><span className="text-xs text-stone-600">{info.food}</span></div>}
+                                    </div>
+                                ) : <div className="text-center text-xs text-red-400">載入失敗</div>}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
         }
 
-        function ActivityItem({ activity, onUpdate, onDelete, onOpenMap }) {
+        // --- ActivityItem ---
+        function ActivityItem({ activity, onUpdate, onDelete, onOpenMap, isLast }) {
             const [isEditing, setIsEditing] = useState(false);
             const [editedActivity, setEditedActivity] = useState(activity);
             const typeConfig = ACTIVITY_TYPES[activity.type] || ACTIVITY_TYPES.other;
             const handleSave = () => { onUpdate(editedActivity); setIsEditing(false); };
-            if (isEditing) { return <div className="bg-white/95 p-4 rounded-xl shadow-lg border-2 border-rose-100 mb-4 animate-in fade-in relative z-20"><div className="space-y-3"><div className="flex gap-2"><input type="time" value={editedActivity.time} onChange={(e) => setEditedActivity({...editedActivity, time: e.target.value})} className="p-2 border border-stone-200 rounded-lg text-sm bg-stone-50 font-mono font-bold" /><select value={editedActivity.type} onChange={(e) => setEditedActivity({...editedActivity, type: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm bg-stone-50">{Object.entries(ACTIVITY_TYPES).map(([key, config]) => (<option key={key} value={key}>{config.label}</option>))}</select></div><input type="text" placeholder="標題" value={editedActivity.title} onChange={(e) => setEditedActivity({...editedActivity, title: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg font-bold text-lg" /><input type="text" placeholder="建議停留時間 (如: 1.5小時)" value={editedActivity.duration} onChange={(e) => setEditedActivity({...editedActivity, duration: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm" /><input type="text" placeholder="地點" value={editedActivity.location} onChange={(e) => setEditedActivity({...editedActivity, location: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm" /><textarea placeholder="備註" value={editedActivity.note} onChange={(e) => setEditedActivity({...editedActivity, note: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm h-16 resize-none"></textarea><div className="flex gap-2 justify-end"><button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-stone-500 hover:bg-stone-100 rounded-lg text-sm">取消</button><button onClick={handleSave} className="px-3 py-1.5 btn-sakura text-white rounded-lg text-sm shadow-sm">儲存</button></div></div></div>; }
-            return <div className="relative pl-8 pb-8 group last:pb-0 z-10"><div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-stone-200 group-last:hidden"></div><div className={`absolute left-[3px] top-6 w-5 h-5 rounded-full border-4 border-[#fffbf0] z-10 ${typeConfig.color.split(' ')[1]} shadow-sm`}></div><div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 hover:shadow-md transition-all relative group-hover:border-stone-200 cursor-default"><div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-rose-500 rounded-full hover:bg-rose-50"><Pencil size={14} /></button><button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-red-50"><Trash2 size={14} /></button></div><div className="flex justify-between items-start mb-2 pr-12"><div><div className="flex items-center gap-2 mb-1.5"><span className="font-mono text-sm font-bold text-stone-400">{activity.time}</span><span className={`text-[10px] px-2 py-0.5 rounded-full ${typeConfig.color}`}>{typeConfig.label}</span>{activity.duration && <span className="flex items-center gap-0.5 text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded-full"><Hourglass size={10}/> {activity.duration}</span>}</div><h3 className="font-bold text-stone-800 text-lg">{activity.title}</h3></div></div>{activity.location && (<div className="flex flex-col gap-2 mb-3"><div className="flex items-center gap-2"><div className="flex items-center gap-1 text-sm text-stone-500 truncate max-w-[200px]"><MapPin size={14} className="text-rose-400"/><span>{activity.location}</span></div><button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activity.location)}&travelmode=driving`, '_blank')} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors"><Navigation size={12} /> 導航</button></div><button onClick={() => onOpenMap(activity.location)} className="flex items-center gap-1 text-xs font-bold text-stone-400 hover:text-rose-500 transition-colors self-start ml-5"><MapIcon size={12} /> 預覽地圖</button></div>)}{activity.note && <div className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100 mb-2"><p className="whitespace-pre-wrap">{activity.note}</p></div>}<ActivityGuide activity={activity} /></div></div>;
+
+            if (isEditing) {
+                return (
+                    <div className="bg-white/95 p-4 rounded-xl shadow-lg border-2 border-rose-100 mb-4 animate-in fade-in relative z-20">
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <input type="time" value={editedActivity.time} onChange={(e) => setEditedActivity({...editedActivity, time: e.target.value})} className="p-2 border border-stone-200 rounded-lg text-sm bg-stone-50 font-mono font-bold" />
+                                <select value={editedActivity.type} onChange={(e) => setEditedActivity({...editedActivity, type: e.target.value})} className="flex-1 p-2 border border-stone-200 rounded-lg text-sm bg-stone-50">
+                                    {Object.entries(ACTIVITY_TYPES).map(([key, config]) => (<option key={key} value={key}>{config.label}</option>))}
+                                </select>
+                            </div>
+                            <input type="text" placeholder="標題" value={editedActivity.title} onChange={(e) => setEditedActivity({...editedActivity, title: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg font-bold text-lg" />
+                            <input type="text" placeholder="建議停留時間" value={editedActivity.duration} onChange={(e) => setEditedActivity({...editedActivity, duration: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm" />
+                            <input type="text" placeholder="地點" value={editedActivity.location} onChange={(e) => setEditedActivity({...editedActivity, location: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm" />
+                            <textarea placeholder="備註" value={editedActivity.note} onChange={(e) => setEditedActivity({...editedActivity, note: e.target.value})} className="w-full p-2 border border-stone-200 rounded-lg text-sm h-16 resize-none"></textarea>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-stone-500 hover:bg-stone-100 rounded-lg text-sm">取消</button>
+                                <button onClick={handleSave} className="px-3 py-1.5 btn-sakura text-white rounded-lg text-sm shadow-sm">儲存</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="relative pl-8 pb-8 group last:pb-0 z-10">
+                    <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-stone-200 group-last:hidden"></div>
+                    <div className={`absolute left-[3px] top-6 w-5 h-5 rounded-full border-4 border-[#fffbf0] z-10 ${typeConfig.color.split(' ')[1]} shadow-sm`}></div>
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 hover:shadow-md transition-all relative group-hover:border-stone-200 cursor-default">
+                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setIsEditing(true)} className="p-1.5 text-stone-400 hover:text-rose-500 rounded-full hover:bg-rose-50"><Pencil size={14} /></button>
+                            <button onClick={() => onDelete(activity.id)} className="p-1.5 text-stone-400 hover:text-red-500 rounded-full hover:bg-red-50"><Trash2 size={14} /></button>
+                        </div>
+                        <div className="flex justify-between items-start mb-2 pr-12">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="font-mono text-sm font-bold text-stone-400">{activity.time}</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${typeConfig.color}`}>{typeConfig.label}</span>
+                                    {activity.duration && <span className="flex items-center gap-0.5 text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded-full"><Hourglass size={10}/> {activity.duration}</span>}
+                                </div>
+                                <h3 className="font-bold text-stone-800 text-lg">{activity.title}</h3>
+                            </div>
+                        </div>
+                        
+                        {activity.location && (
+                            <div className="flex flex-col gap-2 mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 text-sm text-stone-500 truncate max-w-[200px]"><MapPin size={14} className="text-rose-400"/><span>{activity.location}</span></div>
+                                    <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activity.location)}&travelmode=driving`, '_blank')} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors"><Navigation size={12} /> 導航</button>
+                                </div>
+                                <button onClick={() => onOpenMap(activity.location)} className="flex items-center gap-1 text-xs font-bold text-stone-400 hover:text-rose-500 transition-colors self-start ml-5"><MapIcon size={12} /> 預覽地圖</button>
+                            </div>
+                        )}
+                        
+                        {activity.note && <div className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100 mb-2"><p className="whitespace-pre-wrap">{activity.note}</p></div>}
+                        
+                        <ActivityGuide activity={activity} />
+                    </div>
+                    {!isLast && activity.travelTime && (
+                        <div className="absolute left-[20px] -bottom-3 transform -translate-x-1/2 bg-stone-100 text-stone-500 text-[10px] px-2 py-0.5 rounded-full border border-stone-200 z-10 flex items-center gap-1">
+                            {activity.travelTime}
+                        </div>
+                    )}
+                </div>
+            );
         }
 
-        // --- CreateTripWizard (Updates 1, 4, 5) ---
+        function AIChatSidebar({ isOpen, onClose, currentTrip, onUpdateTrip }) {
+            const [messages, setMessages] = useState([{ role: 'assistant', text: '你好！我是你的旅遊助手。' }]);
+            const [input, setInput] = useState("");
+            const [isLoading, setIsLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            useEffect(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+            const handleSend = async () => {
+                if (!input.trim() || isLoading) return;
+                const userText = input;
+                setMessages(prev => [...prev, { role: 'user', text: userText }]);
+                setInput("");
+                setIsLoading(true);
+
+                try {
+                    const tripContext = currentTrip ? JSON.stringify({
+                        title: currentTrip.title,
+                        days: currentTrip.days.map((d, i) => ({ index: i, date: d.date, activities: d.activities.map(a => ({ time: a.time, title: a.title, location: a.location })) }))
+                    }) : "No trip selected";
+                    const prompt = `旅遊助手。Current Trip: ${tripContext}. User: ${userText}. Update JSON: { "type": "update_day", "dayIndex": 0, "response": "Done", "newActivities": [] } or Chat JSON: { "type": "chat", "response": "Markdown" }`;
+                    const result = await callGemini(prompt, "application/json");
+
+                    if (result.type === 'update_day' && currentTrip) {
+                        const updatedDays = [...currentTrip.days];
+                        if (updatedDays[result.dayIndex]) {
+                            updatedDays[result.dayIndex].activities = result.newActivities.map(a => ({...a, id: generateId()}));
+                            onUpdateTrip(currentTrip.id, { days: updatedDays });
+                            setMessages(prev => [...prev, { role: 'assistant', text: result.response + " ✅" }]);
+                        } else {
+                            setMessages(prev => [...prev, { role: 'assistant', text: "找不到該天行程。" }]);
+                        }
+                    } else {
+                        setMessages(prev => [...prev, { role: 'assistant', text: result.response || "收到！" }]);
+                    }
+                } catch (error) {
+                    setMessages(prev => [...prev, { role: 'assistant', text: "API Error." }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 border-l border-stone-200">
+                    <div className="p-4 bg-gradient-to-r from-rose-50 to-orange-50 border-b border-stone-200 flex justify-between items-center flex-none">
+                        <div className="flex items-center gap-2"><Sparkles size={16} className="text-rose-500"/><h3 className="font-bold text-stone-800 japanese-font">AI 隨身助手</h3></div>
+                        <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full"><X size={20}/></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-50/50">
+                        {messages.map((m, i) => (
+                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] rounded-2xl p-3 text-sm shadow-sm ${m.role === 'user' ? 'bg-rose-500 text-white' : 'bg-white border border-stone-100 text-stone-800 prose prose-sm'}`} dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? marked.parse(m.text) : m.text }}></div>
+                            </div>
+                        ))}
+                        {isLoading && <div className="flex justify-start"><Loader2 className="animate-spin text-stone-400" size={16}/></div>}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <div className="p-3 border-t border-stone-200 bg-white flex-none pb-safe">
+                        <div className="flex gap-2">
+                            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="輸入訊息..." className="flex-1 bg-stone-100 border-none rounded-xl px-4 py-3 text-sm outline-none" />
+                            <button onClick={handleSend} disabled={!input.trim() || isLoading} className="p-3 bg-rose-500 text-white rounded-xl hover:bg-rose-600 disabled:opacity-50"><Send size={18} /></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- MapImportModal ---
+        function MapImportModal({ isOpen, onClose, onImport, currentTrip }) {
+            const [importText, setImportText] = useState("");
+            const [selectedImage, setSelectedImage] = useState(null);
+            const [previewUrl, setPreviewUrl] = useState(null);
+            const [parsedDays, setParsedDays] = useState([]); 
+            const [importTitle, setImportTitle] = useState("");
+            const [isLoading, setIsLoading] = useState(false);
+            const [currentStep, setCurrentStep] = useState(1); 
+            const fileInputRef = useRef(null);
+            
+            useEffect(() => { if (isOpen) { setCurrentStep(1); setParsedDays([]); setImportText(""); setSelectedImage(null); setPreviewUrl(null); } }, [isOpen]);
+            const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { setSelectedImage(file); setPreviewUrl(URL.createObjectURL(file)); } };
+            const fileToGenerativePart = async (file) => { const reader = new FileReader(); return new Promise((resolve) => { reader.onloadend = () => resolve({ inline_data: { data: reader.result.split(',')[1], mime_type: file.type } }); reader.readAsDataURL(file); }); };
+            
+            const handleExecute = async () => {
+                if (!importText && !selectedImage) return; 
+                setIsLoading(true); setParsedDays([]);
+                const hotel = currentTrip.days[0].hotel || "住宿地點";
+                const arrival = currentTrip.arrival.time ? `${currentTrip.arrival.time} 抵達 ${currentTrip.arrival.location}` : "早上";
+                try {
+                    let parts = [{ text: `
+                    您是專業導遊。請根據使用者的輸入（文字或圖片），解析出所有「地點名稱」。
+                    請以「自駕」為前提，根據住宿地點「${hotel}」作為每日起點，將這些地點分配到 ${currentTrip.days.length} 天的行程中。
+                    
+                    重要規劃邏輯：
+                    1. Day 1 起點：${arrival}。請在抵達時間後 +2小時（入境/取車緩衝）才開始安排第一個行程。
+                    2. Day 1 住宿：飯店 Check-in 必須安排在所有行程結束後（傍晚或晚上），或是如果順路且時間允許（下午3點後），可安排在中間。絕不能一開始就去 Check-in。
+                    3. 每個行程必須包含 "duration" (建議停留時間，如 "2小時")。
+                    4. 每個行程必須包含 "travelTime" (字串，如 "🚗 30分")，代表「前往下一個景點」的預估車程。最後一個行程的 travelTime 可為空。
+                    5. 智慧 Check-in：請根據飯店地址，在最順路的時間點插入「飯店 Check-in」行程。
+
+                    請回傳 JSON: { "tripTitle": "...", "days": [{ "dateTitle": "...", "activities": [{ "time": "HH:MM", "title": "...", "type": "sightseeing/food/shopping/accommodation", "location": "...", "note": "...", "duration": "...", "travelTime": "..." }] }] }` }];
+                    
+                    if (importText) parts.push({ text: importText });
+                    if (selectedImage) parts.push(await fileToGenerativePart(selectedImage));
+                    const result = await callGemini(parts);
+                    setParsedDays(result.days || []); setImportTitle(result.tripTitle || currentTrip.title); setCurrentStep(2);
+                } catch (error) { alert("AI Error: " + error.message); } finally { setIsLoading(false); }
+            };
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto">
+                    <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl h-[85vh] md:h-auto flex flex-col animate-in slide-in-from-bottom duration-200">
+                        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-stone-800 flex items-center gap-2 japanese-font"><ListPlus size={24}/> {currentStep === 1 ? "智能匯入" : "確認行程"}</h3><button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button></div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {currentStep === 1 ? (
+                                <div className="space-y-4">
+                                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-center">
+                                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+                                        {!previewUrl ? <div onClick={() => fileInputRef.current.click()} className="cursor-pointer py-6 flex flex-col items-center gap-2 text-stone-400"><ImagePlus size={48} className="text-stone-300"/><p>上傳 Google Maps 截圖</p></div> : <div className="relative"><img src={previewUrl} className="max-h-48 mx-auto rounded-lg" /><button onClick={() => { setPreviewUrl(null); setSelectedImage(null); }} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X size={16}/></button></div>}
+                                    </div>
+                                    <textarea placeholder="或貼上文字..." value={importText} onChange={(e) => setImportText(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl h-24 text-sm"></textarea>
+                                    <button onClick={handleExecute} disabled={(!importText && !selectedImage) || isLoading} className="w-full py-4 btn-sakura text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <Loader2 className="animate-spin" /> : "AI 智能分析與規劃"}</button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="space-y-3">{parsedDays.map((day, idx) => (<div key={idx} className="border border-stone-200 rounded-xl p-4 bg-stone-50/50"><h4 className="font-bold text-stone-800 mb-2">{day.dateTitle || `Day ${idx+1}`}</h4><div className="space-y-2">{day.activities.map((a,i)=>(<div key={i} className="text-sm flex gap-2"><span className="text-rose-600 font-mono w-12 flex-shrink-0">{a.time}</span><span className="truncate">{a.title}</span></div>))}</div></div>))}</div>
+                                    <div className="flex gap-3 pt-2"><button onClick={() => setCurrentStep(1)} className="flex-1 py-3 bg-white border border-stone-300 text-stone-600 font-bold rounded-xl">重新編輯</button><button onClick={() => { onImport(parsedDays, importTitle); onClose(); }} className="flex-[2] py-3 btn-sakura text-white font-bold rounded-xl">確認匯入</button></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- CreateTripWizard ---
         function CreateTripWizard({ isOpen, onClose, onCreate }) {
             const [step, setStep] = useState(1);
-            const [data, setData] = useState({ 
-                title: "", date: new Date().toISOString().split('T')[0], days: 7, 
-                arrival: { time: "10:00", location: "機場" },
-                departure: { time: "16:00", location: "機場" },
-                transport: { type: "public", pickupTime: "10:00" }, // Default
-                hotels: [] 
-            });
+            const [data, setData] = useState({ title: "", date: new Date().toISOString().split('T')[0], days: 7, arrival: { time: "10:00", location: "機場" }, departure: { time: "16:00", location: "機場" }, transport: { type: "public", pickupTime: "10:00" }, hotels: [] });
             const [isCreating, setIsCreating] = useState(false);
             const [sameHotel, setSameHotel] = useState(true);
-
+            
             useEffect(() => { if (isOpen) { setStep(1); setData(prev => ({ ...prev, title: "", date: new Date().toISOString().split('T')[0], days: 7, useAI: true, hotels: [] })); setSameHotel(true); } }, [isOpen]);
             
             useEffect(() => {
@@ -357,25 +618,34 @@
                     <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-xl animate-in zoom-in relative overflow-hidden flex flex-col max-h-[85vh]">
                         <div className="absolute top-0 left-0 h-1 bg-stone-100 w-full"><div className="h-full bg-rose-500 transition-all duration-300" style={{width: `${(step/4)*100}%`}}></div></div>
                         <div className="mb-4 mt-2 flex-none"><h3 className="text-xl font-bold text-stone-800 japanese-font flex justify-between items-center">{step===1?"基本資訊":step===2?"航班資訊":step===3?"交通方式":"住宿安排"}<span className="text-xs text-stone-400 font-sans">Step {step}/4</span></h3></div>
+                        
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
-                            {step === 1 && ( <div className="space-y-4 animate-in slide-in-from-right duration-200"><div><label className="text-xs font-bold text-stone-500">旅程名稱</label><input type="text" placeholder="例如：京都五天四夜" value={data.title} onChange={e=>setData({...data, title:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" autoFocus /></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-stone-500">出發日期</label><input type="date" value={data.date} onChange={e=>setData({...data, date:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" /></div><div><label className="text-xs font-bold text-stone-500">天數</label><input type="number" min="2" max="30" value={data.days} onChange={e=>setData({...data, days:parseInt(e.target.value)||1})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" /></div></div><div onClick={() => setData({...data, useAI: !data.useAI})} className={`p-3 rounded-xl border flex items-center gap-2 cursor-pointer ${data.useAI ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-stone-200 text-stone-500'}`}><div className={`w-5 h-5 rounded border flex items-center justify-center ${data.useAI ? 'bg-indigo-600 border-indigo-600' : 'bg-white'}`}>{data.useAI && <Check size={14} className="text-white"/>}</div><span className="text-sm font-bold flex items-center gap-1"><Sparkles size={14}/> AI 自動規劃</span></div></div> )}
-                            {step === 2 && ( <div className="space-y-4 animate-in slide-in-from-right duration-200"><div className="p-3 bg-blue-50 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2 flex items-center gap-1"><Plane size={14} className="rotate-90"/> 去程資訊 (Day 1)</h4><div className="flex gap-2"><input type="time" value={data.arrival.time} onChange={e=>setData({...data, arrival:{...data.arrival, time:e.target.value}})} className="w-24 p-2 bg-white rounded-lg text-sm outline-none" /><input type="text" placeholder="抵達機場/地點" value={data.arrival.location} onChange={e=>setData({...data, arrival:{...data.arrival, location:e.target.value}})} className="flex-1 p-2 bg-white rounded-lg text-sm outline-none" /></div></div><div className="p-3 bg-orange-50 rounded-xl border border-orange-100"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-1"><Plane size={14}/> 回程資訊 (Day {data.days})</h4><div className="flex gap-2"><input type="time" value={data.departure.time} onChange={e=>setData({...data, departure:{...data.departure, time:e.target.value}})} className="w-24 p-2 bg-white rounded-lg text-sm outline-none" /><input type="text" placeholder="出發機場/地點" value={data.departure.location} onChange={e=>setData({...data, departure:{...data.departure, location:e.target.value}})} className="flex-1 p-2 bg-white rounded-lg text-sm outline-none" /></div></div></div> )}
-                            {step === 3 && (
+                            {step === 1 && ( 
+                                <div className="space-y-4 animate-in slide-in-from-right duration-200">
+                                    <div><label className="text-xs font-bold text-stone-500">旅程名稱</label><input type="text" placeholder="例如：京都五天四夜" value={data.title} onChange={e=>setData({...data, title:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500" autoFocus /></div>
+                                    <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-stone-500">出發日期</label><input type="date" value={data.date} onChange={e=>setData({...data, date:e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" /></div><div><label className="text-xs font-bold text-stone-500">天數</label><input type="number" min="2" max="30" value={data.days} onChange={e=>setData({...data, days:parseInt(e.target.value)||1})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" /></div></div>
+                                    <div onClick={() => setData({...data, useAI: !data.useAI})} className={`p-3 rounded-xl border flex items-center gap-2 cursor-pointer ${data.useAI ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-stone-200 text-stone-500'}`}><div className={`w-5 h-5 rounded border flex items-center justify-center ${data.useAI ? 'bg-indigo-600 border-indigo-600' : 'bg-white'}`}>{data.useAI && <Check size={14} className="text-white"/>}</div><span className="text-sm font-bold flex items-center gap-1"><Sparkles size={14}/> AI 自動規劃</span></div>
+                                </div> 
+                            )}
+                            {step === 2 && ( 
+                                <div className="space-y-4 animate-in slide-in-from-right duration-200">
+                                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2 flex items-center gap-1"><Plane size={14} className="rotate-90"/> 去程資訊 (Day 1)</h4><div className="flex gap-2"><input type="time" value={data.arrival.time} onChange={e=>setData({...data, arrival:{...data.arrival, time:e.target.value}})} className="w-24 p-2 bg-white rounded-lg text-sm outline-none" /><input type="text" placeholder="抵達機場/地點" value={data.arrival.location} onChange={e=>setData({...data, arrival:{...data.arrival, location:e.target.value}})} className="flex-1 p-2 bg-white rounded-lg text-sm outline-none" /></div></div>
+                                    <div className="p-3 bg-orange-50 rounded-xl border border-orange-100"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-1"><Plane size={14}/> 回程資訊 (Day {data.days})</h4><div className="flex gap-2"><input type="time" value={data.departure.time} onChange={e=>setData({...data, departure:{...data.departure, time:e.target.value}})} className="w-24 p-2 bg-white rounded-lg text-sm outline-none" /><input type="text" placeholder="出發機場/地點" value={data.departure.location} onChange={e=>setData({...data, departure:{...data.departure, location:e.target.value}})} className="flex-1 p-2 bg-white rounded-lg text-sm outline-none" /></div></div>
+                                </div> 
+                            )}
+                            {step === 3 && ( 
                                 <div className="space-y-4 animate-in slide-in-from-right duration-200">
                                     <p className="text-sm text-stone-500">您這次旅程主要的交通方式是？</p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button onClick={() => setData({...data, transport: { ...data.transport, type: 'public' }})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${data.transport.type === 'public' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-stone-100 bg-white text-stone-400'}`}><Bus size={24}/><span className="text-sm font-bold">大眾運輸</span></button>
-                                        <button onClick={() => setData({...data, transport: { ...data.transport, type: 'car' }})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${data.transport.type === 'car' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-stone-100 bg-white text-stone-400'}`}><Car size={24}/><span className="text-sm font-bold">租車自駕</span></button>
-                                    </div>
-                                    {data.transport.type === 'car' && (
-                                        <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in">
-                                            <label className="text-xs font-bold text-stone-500 block mb-1">預計取車時間 (Day 1)</label>
-                                            <input type="time" value={data.transport.pickupTime} onChange={e=>setData({...data, transport: {...data.transport, pickupTime: e.target.value}})} className="w-full p-2 bg-white rounded-lg text-sm outline-none font-bold" />
-                                        </div>
-                                    )}
-                                </div>
+                                    <div className="grid grid-cols-2 gap-3"><button onClick={() => setData({...data, transport: { ...data.transport, type: 'public' }})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${data.transport.type === 'public' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-stone-100 bg-white text-stone-400'}`}><Bus size={24}/><span className="text-sm font-bold">大眾運輸</span></button><button onClick={() => setData({...data, transport: { ...data.transport, type: 'car' }})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${data.transport.type === 'car' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-stone-100 bg-white text-stone-400'}`}><Car size={24}/><span className="text-sm font-bold">租車自駕</span></button></div>
+                                    {data.transport.type === 'car' && (<div className="bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in"><label className="text-xs font-bold text-stone-500 block mb-1">預計取車時間 (Day 1)</label><input type="time" value={data.transport.pickupTime} onChange={e=>setData({...data, transport: {...data.transport, pickupTime: e.target.value}})} className="w-full p-2 bg-white rounded-lg text-sm outline-none font-bold" /></div>)}
+                                </div> 
                             )}
-                            {step === 4 && ( <div className="space-y-4 animate-in slide-in-from-right duration-200"><div className="flex justify-between items-center mb-2"><p className="text-sm text-stone-500">住宿設定 ({Math.max(0, data.days - 1)} 晚)</p><button onClick={toggleSameHotel} className={`text-xs px-2 py-1 rounded-full border transition-colors ${sameHotel ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>{sameHotel ? "全程同一間" : "每日不同"}</button></div>{sameHotel ? (<div><label className="text-xs font-bold text-stone-500">住宿飯店/區域</label><input type="text" placeholder="例如：新宿格拉斯麗飯店" value={data.hotels[0] || ""} onChange={e=>handleHotelChange(0, e.target.value)} className="w-full p-4 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-lg font-bold mt-1" autoFocus /></div>) : (<div className="space-y-3 pb-2">{Array.from({length: Math.max(0, data.days - 1)}).map((_, idx) => (<div key={idx} className="flex items-center gap-2"><span className="text-xs font-mono text-stone-400 w-16 flex-shrink-0">Night {idx+1}</span><input type="text" placeholder={`第 ${idx+1} 晚住宿`} value={data.hotels[idx] || ""} onChange={e=>handleHotelChange(idx, e.target.value)} className="flex-1 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm" /></div>))}</div>)}</div> )}
+                            {step === 4 && ( 
+                                <div className="space-y-4 animate-in slide-in-from-right duration-200">
+                                    <div className="flex justify-between items-center mb-2"><p className="text-sm text-stone-500">住宿設定 ({Math.max(0, data.days - 1)} 晚)</p><button onClick={toggleSameHotel} className={`text-xs px-2 py-1 rounded-full border transition-colors ${sameHotel ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>{sameHotel ? "全程同一間" : "每日不同"}</button></div>
+                                    {sameHotel ? (<div><label className="text-xs font-bold text-stone-500">住宿飯店/區域</label><input type="text" placeholder="例如：新宿格拉斯麗飯店" value={data.hotels[0] || ""} onChange={e=>handleHotelChange(0, e.target.value)} className="w-full p-4 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-lg font-bold mt-1" autoFocus /></div>) : (<div className="space-y-3 pb-2">{Array.from({length: Math.max(0, data.days - 1)}).map((_, idx) => (<div key={idx} className="flex items-center gap-2"><span className="text-xs font-mono text-stone-400 w-16 flex-shrink-0">Night {idx+1}</span><input type="text" placeholder={`第 ${idx+1} 晚住宿`} value={data.hotels[idx] || ""} onChange={e=>handleHotelChange(idx, e.target.value)} className="flex-1 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm" /></div>))}</div>)}
+                                </div> 
+                            )}
                         </div>
                         <div className="flex justify-between gap-2 mt-4 pt-2 border-t border-stone-100 flex-none"><button onClick={step === 1 ? onClose : handleBack} className="px-4 py-3 text-stone-400 font-bold hover:bg-stone-50 rounded-xl">{step === 1 ? "取消" : "上一步"}</button><button onClick={handleNext} disabled={!data.title || isCreating} className="flex-1 py-3 btn-sakura text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">{isCreating ? <Loader2 className="animate-spin" /> : step === 4 ? (data.useAI ? "開始 AI 規劃" : "建立行程") : "下一步"}{!isCreating && step < 4 && <ArrowRight size={16}/>}</button></div>
                     </div>
@@ -388,7 +658,7 @@
           const [trips, setTrips] = useState(() => JSON.parse(localStorage.getItem('travel_planner_trips')) || DEFAULT_TRIPS);
           const [currentTripId, setCurrentTripId] = useState(null);
           const [currentDayIndex, setCurrentDayIndex] = useState(0);
-          const [activeTab, setActiveTab] = useState('itinerary'); // 'itinerary' or 'info'
+          const [activeTab, setActiveTab] = useState('itinerary');
           
           const [isChatOpen, setIsChatOpen] = useState(false);
           const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -396,30 +666,43 @@
           const [isAddActivityOpen, setIsAddActivityOpen] = useState(false); 
           const [activeMapLocation, setActiveMapLocation] = useState(null); 
           const [newActivity, setNewActivity] = useState({ time: "09:00", title: "", type: "sightseeing", location: "", note: "" });
+          const fileInputRef = useRef(null);
 
           useEffect(() => { localStorage.setItem('travel_planner_trips', JSON.stringify(trips)); }, [trips]);
 
           const currentTrip = trips.find(t => t.id === currentTripId);
-          const currentDay = currentTrip ? currentTrip.days[currentDayIndex] : null;
-
           const handleUpdateTrip = (id, data) => setTrips(trips.map(t => t.id === id ? { ...t, ...data } : t));
           const handleDeleteTrip = (id) => { if(confirm("刪除此行程？")) setTrips(trips.filter(t => t.id !== id)); setCurrentTripId(null); };
+
+          const handleImportTrip = (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                  try {
+                      const importedTrip = JSON.parse(event.target.result);
+                      if (importedTrip.id && importedTrip.title) {
+                          importedTrip.id = generateId(); 
+                          setTrips(prev => [...prev, importedTrip]);
+                          alert("行程匯入成功！");
+                      } else { alert("無效的行程檔案格式"); }
+                  } catch (err) { alert("檔案讀取失敗"); }
+              };
+              reader.readAsText(file);
+          };
 
           const handleCreateTripSubmit = async (data) => {
               try {
                   let generatedDays = [];
                   if (data.useAI) {
                       const hotelsContext = data.hotels.map((h, i) => `Night ${i+1}: ${h}`).join(', ');
-                      // AI Prompt updated with transportation logic
-                      const transportPrompt = data.transport.type === 'car' ? `交通方式：租車自駕。請在 Day 1 抵達後安排「取車」行程 (預計取車時間: ${data.transport.pickupTime})。` : `交通方式：大眾運輸。`;
                       const prompt = `請為我規劃「${data.title}」。出發日期：${data.date}。天數：${data.days}天。
                       重要限制：
-                      1. Day 1: 起點是 ${data.arrival.time} 抵達 ${data.arrival.location}。請加上入境時間 1.5 小時後開始行程。${transportPrompt}
+                      1. Day 1: 起點是 ${data.arrival.time} 抵達 ${data.arrival.location}。Day 1 行程必須從機場出發（加 1.5小時入境緩衝），飯店 Check-in 請安排在傍晚或晚上。
                       2. Day ${data.days}: 終點是 ${data.departure.time} 於 ${data.departure.location}。
-                      3. 住宿安排：${hotelsContext}。行程請務必配合當天住宿地點安排，確保順路。
+                      3. 住宿安排：${hotelsContext}。每日行程起點應配合前一晚住宿，終點配合當晚住宿。
                       4. 每個行程請提供 "duration" (建議停留時間，如 "2小時")。
                       請回傳 JSON: { "days": [ { "date": "Day 1", "activities": [ { "time": "10:00", "title": "...", "type": "sightseeing/food/shopping/transport", "location": "...", "note": "...", "duration": "..." } ] } ] }。`;
-                      
                       const result = await callGemini(prompt);
                       if (result?.days) {
                           generatedDays = result.days.map((d, i) => ({
@@ -465,6 +748,7 @@
                       <JapaneseDecoration />
                       <DashboardWeather locationName="Taipei" />
                       <h1 className="text-2xl font-bold text-stone-800 px-4 mb-4 japanese-font flex items-center gap-2 relative z-10"><MapIcon className="text-rose-500"/> 我的旅程</h1>
+                      
                       <div className="grid gap-4 px-4 relative z-10">
                           {trips.map(trip => (
                               <div key={trip.id} onClick={() => { setCurrentTripId(trip.id); setActiveTab('itinerary'); }} className="bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-stone-200 cursor-pointer hover:border-rose-300 transition-all">
@@ -472,7 +756,15 @@
                                   <p className="text-sm text-stone-500">{trip.startDate} · {trip.days.length} 天</p>
                               </div>
                           ))}
-                          <button onClick={() => setIsCreateOpen(true)} className="py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-rose-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-2"><Plus/> 建立新旅程</button>
+                          <div className="flex gap-3">
+                              <button onClick={() => setIsCreateOpen(true)} className="flex-1 py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-rose-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-2">
+                                  <Plus/> 建立新旅程
+                              </button>
+                              <button onClick={() => fileInputRef.current.click()} className="flex-1 py-4 border-2 border-dashed border-stone-300 text-stone-400 rounded-2xl font-bold hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2">
+                                  <FileJson/> 匯入行程
+                              </button>
+                              <input type="file" accept=".json" ref={fileInputRef} onChange={handleImportTrip} className="hidden" />
+                          </div>
                       </div>
                       <CreateTripWizard isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onCreate={handleCreateTripSubmit} />
                   </div>
@@ -501,7 +793,7 @@
                   <div className="flex-1 relative flex overflow-hidden z-10 min-h-0">
                       {activeTab === 'itinerary' ? (
                           <div className="flex-1 flex flex-col h-full min-w-[320px] min-h-0">
-                              <div className="pt-2"><DashboardWeather locationName={currentTrip.title} /></div>
+                              <div className="pt-2"><DashboardWeather tripTitle={currentTrip.title} arrivalLocation={currentTrip.arrival?.location} hotelLocation={currentTrip.days[0]?.hotel} /></div>
                               <div className="flex overflow-x-auto p-2 gap-2 bg-white/50 backdrop-blur-sm border-b border-stone-200 no-scrollbar z-20 shadow-sm flex-none sticky top-0">
                                   {currentTrip.days.map((day, idx) => (
                                       <button key={day.id} onClick={() => setCurrentDayIndex(idx)} className={`flex-none px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all flex flex-col items-center ${currentDayIndex === idx ? 'btn-sakura text-white shadow-md' : 'bg-white text-stone-500 border border-stone-200'}`}>
@@ -516,8 +808,8 @@
                                         <div><p className="text-xs text-stone-400 font-bold">Day {currentDayIndex+1} 晚上住宿</p><p className="font-bold text-stone-800">{currentTrip.days[currentDayIndex].hotel || (currentDayIndex < currentTrip.days.length -1 ? "尚未設定" : "準備回程")}</p></div>
                                     </div>
                                     <div className="space-y-0">
-                                        {(currentDay.activities || []).length === 0 ? <div className="text-center py-12 text-stone-400">尚無行程，點擊 + 新增</div> : 
-                                          currentDay.activities.map(act => (
+                                        {(currentTrip.days[currentDayIndex].activities || []).length === 0 ? <div className="text-center py-12 text-stone-400">尚無行程，點擊 + 新增</div> : 
+                                          currentTrip.days[currentDayIndex].activities.map(act => (
                                               <ActivityItem key={act.id} activity={act} onUpdate={(updatedAct) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].activities = updatedDays[currentDayIndex].activities.map(a => a.id === updatedAct.id ? updatedAct : a).sort((a,b) => a.time.localeCompare(b.time)); handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} onDelete={(id) => { const updatedDays = [...currentTrip.days]; updatedDays[currentDayIndex].activities = updatedDays[currentDayIndex].activities.filter(a => a.id !== id); handleUpdateTrip(currentTrip.id, { days: updatedDays }); }} onOpenMap={setActiveMapLocation} />
                                           ))
                                         }
@@ -530,7 +822,6 @@
                       )}
                   </div>
                   
-                  {/* Bottom Navigation */}
                   <nav className="bg-white/90 backdrop-blur-md border-t border-stone-200 px-6 py-2 flex justify-around items-center z-30 pb-safe flex-none">
                       <button onClick={() => setActiveTab('itinerary')} className={`flex flex-col items-center gap-1 ${activeTab === 'itinerary' ? 'text-rose-600' : 'text-stone-400'}`}><MapIcon size={24} strokeWidth={activeTab==='itinerary'?2.5:2} /><span className="text-[10px] font-bold">行程</span></button>
                       
@@ -555,37 +846,9 @@
                   
                   {isImportModalOpen && <MapImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={(days, title) => { const updatedTrips = trips.map(t => t.id === currentTripId ? { ...t, title, days: days.map((d, i) => ({ id: generateId(), date: d.dateTitle || `Day ${i + 1}`, hotel: t.days[i]?.hotel || "", activities: d.activities.map(act => ({ ...act, id: generateId() })) })) } : t); setTrips(updatedTrips); setCurrentDayIndex(0); }} currentTrip={currentTrip} />}
                   {activeMapLocation && <DraggableMapWindow location={activeMapLocation} onClose={() => setActiveMapLocation(null)} />}
+                  <CreateTripWizard isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onCreate={handleCreateTripSubmit} />
               </div>
           );
-        }
-
-        // Re-inject MapImportModal for the closure above
-        function MapImportModal({ isOpen, onClose, onImport, currentTrip }) {
-            const [importText, setImportText] = useState("");
-            const [selectedImage, setSelectedImage] = useState(null);
-            const [previewUrl, setPreviewUrl] = useState(null);
-            const [parsedDays, setParsedDays] = useState([]); 
-            const [importTitle, setImportTitle] = useState("");
-            const [isLoading, setIsLoading] = useState(false);
-            const [currentStep, setCurrentStep] = useState(1); 
-            const fileInputRef = useRef(null);
-            useEffect(() => { if (isOpen) { setCurrentStep(1); setParsedDays([]); setImportText(""); setSelectedImage(null); setPreviewUrl(null); } }, [isOpen]);
-            const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { setSelectedImage(file); setPreviewUrl(URL.createObjectURL(file)); } };
-            const fileToGenerativePart = async (file) => { const reader = new FileReader(); return new Promise((resolve) => { reader.onloadend = () => resolve({ inline_data: { data: reader.result.split(',')[1], mime_type: file.type } }); reader.readAsDataURL(file); }); };
-            const handleExecute = async () => { if (!importText && !selectedImage) return; setIsLoading(true); setParsedDays([]); const hotel = currentTrip.days[0].hotel || "住宿地點"; try { let parts = [{ text: `您是專業導遊。請根據使用者的輸入（文字或圖片），解析出所有「地點名稱」。請以「自駕」為前提，根據住宿地點「${hotel}」作為每日起點，將這些地點分配到 ${currentTrip.days.length} 天的行程中。每個行程請務必包含 "duration" (建議停留時間，如 "2小時")。請回傳 JSON: { "tripTitle": "...", "days": [{ "dateTitle": "...", "activities": [{ "time": "HH:MM", "title": "地點名稱", "type": "sightseeing/food/shopping", "location": "地點名稱(用於導航)", "note": "特色與建議", "duration": "..." }] }] }` }]; if (importText) parts.push({ text: importText }); if (selectedImage) parts.push(await fileToGenerativePart(selectedImage)); const result = await callGemini(parts); setParsedDays(result.days || []); setImportTitle(result.tripTitle || currentTrip.title); setCurrentStep(2); } catch (error) { alert("AI Error: " + error.message); } finally { setIsLoading(false); } };
-            if (!isOpen) return null;
-            return <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4 overflow-y-auto"><div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg p-6 pb-10 md:pb-6 shadow-2xl h-[85vh] md:h-auto flex flex-col animate-in slide-in-from-bottom duration-200"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-stone-800 flex items-center gap-2 japanese-font"><ListPlus size={24}/> {currentStep === 1 ? "智能匯入" : "確認行程"}</h3><button onClick={onClose} className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"><X size={20} /></button></div><div className="flex-1 overflow-y-auto custom-scrollbar">{currentStep === 1 ? (<div className="space-y-4"><div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-center"><input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />{!previewUrl ? <div onClick={() => fileInputRef.current.click()} className="cursor-pointer py-6 flex flex-col items-center gap-2 text-stone-400"><ImagePlus size={48} className="text-stone-300"/><p>上傳 Google Maps 截圖</p></div> : <div className="relative"><img src={previewUrl} className="max-h-48 mx-auto rounded-lg" /><button onClick={() => { setPreviewUrl(null); setSelectedImage(null); }} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X size={16}/></button></div>}</div><textarea placeholder="或貼上文字..." value={importText} onChange={(e) => setImportText(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl h-24 text-sm"></textarea><button onClick={handleExecute} disabled={(!importText && !selectedImage) || isLoading} className="w-full py-4 btn-sakura text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <Loader2 className="animate-spin" /> : "AI 智能分析與規劃"}</button></div>) : (<div className="space-y-4"><div className="space-y-3">{parsedDays.map((day, idx) => (<div key={idx} className="border border-stone-200 rounded-xl p-4 bg-stone-50/50"><h4 className="font-bold text-stone-800 mb-2">{day.dateTitle || `Day ${idx+1}`}</h4><div className="space-y-2">{day.activities.map((a,i)=>(<div key={i} className="text-sm flex gap-2"><span className="text-rose-600 font-mono w-12 flex-shrink-0">{a.time}</span><span className="truncate">{a.title}</span></div>))}</div></div>))}</div><div className="flex gap-3 pt-2"><button onClick={() => setCurrentStep(1)} className="flex-1 py-3 bg-white border border-stone-300 text-stone-600 font-bold rounded-xl">重新編輯</button><button onClick={() => { onImport(parsedDays, importTitle); onClose(); }} className="flex-[2] py-3 btn-sakura text-white font-bold rounded-xl">確認匯入</button></div></div>)}</div></div></div>;
-        }
-
-        function AIChatSidebar({ isOpen, onClose, currentTrip, onUpdateTrip }) {
-            const [messages, setMessages] = useState([{ role: 'assistant', text: '你好！我是你的旅遊助手。我可以幫你調整行程、推薦餐廳，或是解答旅遊問題。' }]);
-            const [input, setInput] = useState("");
-            const [isLoading, setIsLoading] = useState(false);
-            const messagesEndRef = useRef(null);
-            useEffect(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-            const handleSend = async () => { if (!input.trim() || isLoading) return; const userText = input; setMessages(prev => [...prev, { role: 'user', text: userText }]); setInput(""); setIsLoading(true); try { const tripContext = currentTrip ? JSON.stringify({ title: currentTrip.title, days: currentTrip.days.map((d, i) => ({ index: i, date: d.date, activities: d.activities.map(a => ({ time: a.time, title: a.title, location: a.location })) })) }) : "No trip selected"; const prompt = `你是一個有能力修改 JSON 資料的旅遊助手。Current Trip Data: ${tripContext}. User Request: ${userText}. 如果是普通聊天，回傳 JSON: { "type": "chat", "response": "Markdown response" }. 如果是修改行程，回傳 JSON: { "type": "update_day", "dayIndex": 0, "response": "Done", "newActivities": [ { "time": "HH:MM", "title": "...", "type": "...", "location": "...", "note": "...", "duration": "..." } ] }`; const result = await callGemini(prompt, "application/json"); if (result.type === 'update_day' && currentTrip) { const updatedDays = [...currentTrip.days]; if (updatedDays[result.dayIndex]) { updatedDays[result.dayIndex].activities = result.newActivities.map(a => ({...a, id: generateId()})); onUpdateTrip(currentTrip.id, { days: updatedDays }); setMessages(prev => [...prev, { role: 'assistant', text: result.response + " ✅" }]); } else { setMessages(prev => [...prev, { role: 'assistant', text: "找不到該天行程。" }]); } } else { setMessages(prev => [...prev, { role: 'assistant', text: result.response || "收到！" }]); } } catch (error) { setMessages(prev => [...prev, { role: 'assistant', text: "API Error. 請稍後再試。" }]); } finally { setIsLoading(false); } };
-            if (!isOpen) return null;
-            return <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 border-l border-stone-200"><div className="p-4 bg-gradient-to-r from-rose-50 to-orange-50 border-b border-stone-200 flex justify-between items-center flex-none"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-400 to-orange-400 flex items-center justify-center text-white"><Sparkles size={16}/></div><h3 className="font-bold text-stone-800 japanese-font">AI 隨身助手</h3></div><button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-50/50">{messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] rounded-2xl p-3 text-sm shadow-sm ${m.role === 'user' ? 'bg-rose-500 text-white rounded-tr-none' : 'bg-white border border-stone-100 text-stone-800 rounded-tl-none prose prose-sm'}`} dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? marked.parse(m.text) : m.text }}></div></div>))}{isLoading && <div className="flex justify-start"><div className="bg-white border border-stone-100 rounded-2xl p-3 rounded-tl-none flex items-center gap-2 text-stone-400 text-xs"><Loader2 className="animate-spin" size={12}/> 思考行程中...</div></div>}<div ref={messagesEndRef} /></div><div className="p-3 border-t border-stone-200 bg-white flex-none pb-safe"><div className="flex gap-2"><input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="輸入訊息..." className="flex-1 bg-stone-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 outline-none" /><button onClick={handleSend} disabled={!input.trim() || isLoading} className="p-3 bg-rose-500 text-white rounded-xl hover:bg-rose-600 disabled:opacity-50"><Send size={18} /></button></div></div></div>;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
